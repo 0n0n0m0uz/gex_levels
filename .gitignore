@@ -1,0 +1,12 @@
+.env
+.schwab_token.json
+/data/
+src/gex_levels/volume/data/
+__pycache__/
+*.pyc
+user/
+.archive/
+.idea/
+.ipynb_checkpoints/
+.venv/
+*.egg-info/

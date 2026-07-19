@@ -1,0 +1,99 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0
+// © OTM Call Delta-Volume Momentum — SPX Daily
+//@version=5
+indicator("OTM Call Flow — SPX", overlay=false)
+
+// ═══════════════════════════════════════════════════════════════
+//  PASTE UPDATED DATA HERE EACH MORNING
+// ═══════════════════════════════════════════════════════════════
+var string OCFLOW_SYM      = "SPX"
+var string OCFLOW_TS       = "2026-07-08T00:00:00Z"
+var float  OCFLOW_SPOT     = 0.0
+var float  OCFLOW_DD_OI    = 0.0   // dollar-delta OI  — cumulative positioning
+var float  OCFLOW_DD_VOL   = 0.0   // dollar-delta Vol — today's buying flow
+var float  OCFLOW_DG_OI    = 0.0   // dollar-gamma OI  — gamma concentration
+var float  OCFLOW_NEAR_OI  = 0.0   // near-term (≤21d) dollar-delta OI
+var float  OCFLOW_FAR_OI   = 0.0   // far-term  (>21d) dollar-delta OI
+var string OCFLOW_SIGNAL   = "N/A"
+var string OCFLOW_MOMENTUM = "N/A"
+// ═══════════════════════════════════════════════════════════════
+
+show_table = input.bool(true, "Show Info Table")
+
+// ── Format dollar values ──────────────────────────────────────
+f_fmt(v) =>
+    abs_v = math.abs(v)
+    sign  = v >= 0 ? "+" : "-"
+    abs_v >= 1e9 ? sign + str.tostring(math.round(abs_v / 1e9 * 100) / 100) + "B"
+         : abs_v >= 1e6 ? sign + str.tostring(math.round(abs_v / 1e6 * 10) / 10) + "M"
+         : sign + str.tostring(math.round(abs_v / 1e3)) + "K"
+
+// ── Derived ───────────────────────────────────────────────────
+total_oi  = OCFLOW_NEAR_OI + OCFLOW_FAR_OI
+near_pct  = total_oi > 0 ? math.round(OCFLOW_NEAR_OI / total_oi * 100) : 0
+
+sig_color =
+    str.contains(OCFLOW_SIGNAL, "BULLISH") ? color.green
+    : str.contains(OCFLOW_SIGNAL, "FADING") ? color.red
+    : color.gray
+
+mom_color =
+    str.contains(OCFLOW_MOMENTUM, "+") ? color.green
+    : str.contains(OCFLOW_MOMENTUM, "-") ? color.red
+    : color.gray
+
+near_color = near_pct >= 50 ? color.lime : color.orange
+
+// ── Table ─────────────────────────────────────────────────────
+var table tbl = table.new(
+    position.top_left, 2, 10,
+    border_width=1,
+    border_color=color.new(color.gray, 60),
+    bgcolor=color.new(color.black, 75))
+
+if barstate.islast and show_table
+    // Header
+    table.cell(tbl, 0, 0, "OTM Call Flow · " + OCFLOW_SYM,
+        text_color=color.white, text_size=size.normal,
+        bgcolor=color.new(color.purple, 40))
+    table.cell(tbl, 1, 0, OCFLOW_TS,
+        text_color=color.silver, text_size=size.tiny,
+        bgcolor=color.new(color.purple, 40))
+
+    // Spot
+    table.cell(tbl, 0, 1, "Spot",             text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 1, str.tostring(OCFLOW_SPOT), text_color=color.white, text_size=size.small)
+
+    // Dollar-Delta OI
+    table.cell(tbl, 0, 2, "DD-OI (position)", text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 2, f_fmt(OCFLOW_DD_OI), text_color=color.white, text_size=size.small)
+
+    // Dollar-Delta Vol
+    table.cell(tbl, 0, 3, "DD-Vol (flow)",    text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 3, f_fmt(OCFLOW_DD_VOL), text_color=color.aqua, text_size=size.small)
+
+    // Dollar-Gamma OI
+    table.cell(tbl, 0, 4, "DG-OI (gamma)",    text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 4, f_fmt(OCFLOW_DG_OI), text_color=color.yellow, text_size=size.small)
+
+    // Near vs Far
+    table.cell(tbl, 0, 5, "Near ≤21d",        text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 5, f_fmt(OCFLOW_NEAR_OI), text_color=near_color, text_size=size.small)
+
+    table.cell(tbl, 0, 6, "Far >21d",         text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 6, f_fmt(OCFLOW_FAR_OI), text_color=near_pct < 50 ? color.lime : color.orange, text_size=size.small)
+
+    // Near %
+    table.cell(tbl, 0, 7, "Near-term %",      text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 7, str.tostring(near_pct) + "%", text_color=near_color, text_size=size.small)
+
+    // Momentum
+    table.cell(tbl, 0, 8, "Momentum",         text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 8, OCFLOW_MOMENTUM,    text_color=mom_color,    text_size=size.small)
+
+    // Signal
+    table.cell(tbl, 0, 9, "Signal",           text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 9, OCFLOW_SIGNAL,      text_color=sig_color,    text_size=size.normal)
+
+// ── Subtle background tint by signal ─────────────────────────
+bgcolor(barstate.islast ? color.new(sig_color, 95) : na)

@@ -1,0 +1,222 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0
+// © GEX Levels Overlay — Daily (SPX / NDX / Stocks)
+//@version=5
+indicator("GEX Levels Daily", overlay=true, max_lines_count=500, max_labels_count=500, max_boxes_count=20)
+
+// ═══════════════════════════════════════════════════════════════
+//  PASTE UPDATED DATA HERE EACH DAY
+// ═══════════════════════════════════════════════════════════════
+var string SYM       = "NDX"
+var string TIMESTAMP = "2026-06-03"
+var float UNDERLYING = 21000.00
+
+// ── 30D levels ──────────────────────────────────────────────────
+var string REGIME_30     = "positive_gamma"
+var float GAMMA_FLIP_30  = 20900.00
+var float VOL_TRIGGER_30 = 21000.00
+var float HVL_30         = 20950.00
+var float CALL_WALL_30   = 21200.00
+var float CW_LOW_30      = 21100.00
+var float CW_HIGH_30     = 21200.00
+var float PUT_WALL_30    = 20800.00
+var float PW_LOW_30      = 20800.00
+var float PW_HIGH_30     = 20850.00
+var float KEY_CALL_2_30  = 21100.00
+var float KEY_CALL_3_30  = 21300.00
+var float KEY_PUT_2_30   = 20700.00
+var float KEY_PUT_3_30   = 20600.00
+var string NET_GEX_30    = "+1.00B"
+var float  NET_DEX_30    = 0.0
+var string DEX_REGIME_30 = "dealer_long"
+var float  CPR_RAW_30    = 1.0000
+var float  CPR_NOTL_30   = 1.0000
+var float GEX_NODE1_P_30 = 21000.00
+var float GEX_NODE1_V_30 = 1000000000.0
+var float GEX_NODE2_P_30 = 21200.00
+var float GEX_NODE2_V_30 = 800000000.0
+var float GEX_NODE3_P_30 = 20800.00
+var float GEX_NODE3_V_30 = -600000000.0
+var float GEX_NODE4_P_30 = 20600.00
+var float GEX_NODE4_V_30 = -400000000.0
+var float GEX_NODE5_P_30 = 21400.00
+var float GEX_NODE5_V_30 = 200000000.0
+
+// ── 90D levels ──────────────────────────────────────────────────
+var string REGIME_90     = "positive_gamma"
+var float GAMMA_FLIP_90  = 20900.00
+var float VOL_TRIGGER_90 = 21000.00
+var float HVL_90         = 20950.00
+var float CALL_WALL_90   = 21200.00
+var float CW_LOW_90      = 21100.00
+var float CW_HIGH_90     = 21200.00
+var float PUT_WALL_90    = 20800.00
+var float PW_LOW_90      = 20800.00
+var float PW_HIGH_90     = 20850.00
+var float KEY_CALL_2_90  = 21100.00
+var float KEY_CALL_3_90  = 21300.00
+var float KEY_PUT_2_90   = 20700.00
+var float KEY_PUT_3_90   = 20600.00
+var string NET_GEX_90    = "+1.00B"
+var float  NET_DEX_90    = 0.0
+var string DEX_REGIME_90 = "dealer_long"
+var float  CPR_RAW_90    = 1.0000
+var float  CPR_NOTL_90   = 1.0000
+var float GEX_NODE1_P_90 = 21000.00
+var float GEX_NODE1_V_90 = 1000000000.0
+var float GEX_NODE2_P_90 = 21200.00
+var float GEX_NODE2_V_90 = 800000000.0
+var float GEX_NODE3_P_90 = 20800.00
+var float GEX_NODE3_V_90 = -600000000.0
+var float GEX_NODE4_P_90 = 20600.00
+var float GEX_NODE4_V_90 = -400000000.0
+var float GEX_NODE5_P_90 = 21400.00
+var float GEX_NODE5_V_90 = 200000000.0
+// ═══════════════════════════════════════════════════════════════
+
+// ── Settings ─────────────────────────────────────────────────────
+dte_mode      = input.string("Both", "DTE Window", options=["30 Day", "90 Day", "Both"])
+show_zones    = input.bool(true,  "Show Call/Put Wall Zones")
+show_key      = input.bool(true,  "Show Key Call/Put Levels")
+show_nodes    = input.bool(true,  "Show Top GEX Profile Nodes")
+show_underlyi = input.bool(true,  "Show Underlying Reference Line")
+show_table    = input.bool(true,  "Show Info Table")
+lw            = input.int(2, "Line Width", minval=1, maxval=4)
+
+show_30 = dte_mode == "30 Day" or dte_mode == "Both"
+show_90 = dte_mode == "90 Day" or dte_mode == "Both"
+
+sty_30 = line.style_solid
+sty_90 = dte_mode == "Both" ? line.style_dashed : line.style_solid
+
+// ── Colors ────────────────────────────────────────────────────────
+C_CALL   = color.new(color.green,   10)
+C_PUT    = color.new(color.red,     10)
+C_FLIP   = color.new(color.orange,  10)
+C_HVL    = color.new(color.aqua,    10)
+C_KEY_C  = color.new(color.lime,    30)
+C_KEY_P  = color.new(color.maroon,  10)
+C_UND    = color.new(color.white,   30)
+C_NODE_C = color.new(color.teal,    20)
+C_NODE_P = color.new(color.fuchsia, 20)
+
+// ── Draw functions ────────────────────────────────────────────────
+f_line(price, col, sty) =>
+    line.new(bar_index - 100, price, bar_index, price, color=col, width=lw, style=sty, extend=extend.right)
+
+f_label(price, txt, col, x_off) =>
+    label.new(bar_index + x_off, price, txt, color=color.new(col, 88), textcolor=col, style=label.style_label_lower_left, size=size.small)
+
+// Each label has a unique x offset so they never overlap regardless of price
+f_draw_set(gf, vt, hvl, cw, cw_low, cw_high, pw, pw_low, pw_high, kc2, kc3, kp2, kp3, n1p, n1v, n2p, n2v, n3p, n3v, n4p, n4v, n5p, n5v, sty, lbl_suffix) =>
+    f_line(cw, C_CALL, sty)
+    f_label(cw,  "Call Wall " + lbl_suffix + "  " + str.tostring(cw),  C_CALL, 2)
+
+    f_line(pw, C_PUT, sty)
+    f_label(pw,  "Put Wall " + lbl_suffix + "  "  + str.tostring(pw),  C_PUT,  12)
+
+    f_line(gf, C_FLIP, sty)
+    f_label(gf,  "Gamma Flip " + lbl_suffix + "  " + str.tostring(gf), C_FLIP, 22)
+
+    if vt != gf
+        f_line(vt, color.new(color.yellow, 10), sty)
+        f_label(vt, "Vol Trigger " + lbl_suffix + "  " + str.tostring(vt), color.new(color.yellow, 10), 32)
+
+    f_line(hvl, C_HVL, sty == line.style_solid ? line.style_dashed : line.style_dotted)
+    f_label(hvl, "HVL " + lbl_suffix + "  " + str.tostring(hvl), C_HVL, 42)
+
+    if show_key
+        f_line(kc2, C_KEY_C, sty == line.style_solid ? line.style_dashed : line.style_dotted)
+        f_label(kc2, "Key Call 2 " + lbl_suffix + "  " + str.tostring(kc2), C_KEY_C, 52)
+        f_line(kc3, C_KEY_C, line.style_dotted)
+        f_label(kc3, "Key Call 3 " + lbl_suffix + "  " + str.tostring(kc3), C_KEY_C, 62)
+        f_line(kp2, C_KEY_P, sty == line.style_solid ? line.style_dashed : line.style_dotted)
+        f_label(kp2, "Key Put 2 " + lbl_suffix + "  "  + str.tostring(kp2), C_KEY_P, 72)
+        f_line(kp3, C_KEY_P, line.style_dotted)
+        f_label(kp3, "Key Put 3 " + lbl_suffix + "  "  + str.tostring(kp3), C_KEY_P, 82)
+
+    if show_zones
+        if cw_high != cw_low
+            box.new(bar_index - 100, cw_high, bar_index, cw_low, border_color=color.new(C_CALL, 50), bgcolor=color.new(C_CALL, 88), extend=extend.right)
+        if pw_high != pw_low
+            box.new(bar_index - 100, pw_high, bar_index, pw_low, border_color=color.new(C_PUT, 50), bgcolor=color.new(C_PUT, 88), extend=extend.right)
+
+    if show_nodes
+        if not na(n1p)
+            f_line(n1p, n1v >= 0 ? C_NODE_C : C_NODE_P, sty)
+            f_label(n1p, "Node 1 " + lbl_suffix + "  " + str.tostring(n1p), n1v >= 0 ? C_NODE_C : C_NODE_P, 92)
+        if not na(n2p)
+            f_line(n2p, n2v >= 0 ? C_NODE_C : C_NODE_P, sty)
+            f_label(n2p, "Node 2 " + lbl_suffix + "  " + str.tostring(n2p), n2v >= 0 ? C_NODE_C : C_NODE_P, 102)
+        if not na(n3p)
+            f_line(n3p, n3v >= 0 ? C_NODE_C : C_NODE_P, sty)
+            f_label(n3p, "Node 3 " + lbl_suffix + "  " + str.tostring(n3p), n3v >= 0 ? C_NODE_C : C_NODE_P, 112)
+        if not na(n4p)
+            f_line(n4p, n4v >= 0 ? C_NODE_C : C_NODE_P, sty)
+            f_label(n4p, "Node 4 " + lbl_suffix + "  " + str.tostring(n4p), n4v >= 0 ? C_NODE_C : C_NODE_P, 122)
+        if not na(n5p)
+            f_line(n5p, n5v >= 0 ? C_NODE_C : C_NODE_P, sty)
+            f_label(n5p, "Node 5 " + lbl_suffix + "  " + str.tostring(n5p), n5v >= 0 ? C_NODE_C : C_NODE_P, 132)
+
+// ── Lines and labels (last bar only) ─────────────────────────────
+if barstate.islast
+    if show_underlyi
+        f_line(UNDERLYING, C_UND, line.style_dotted)
+        f_label(UNDERLYING, "Underlying  " + str.tostring(UNDERLYING), C_UND, 2)
+
+    if show_30
+        f_draw_set(GAMMA_FLIP_30, VOL_TRIGGER_30, HVL_30, CALL_WALL_30, CW_LOW_30, CW_HIGH_30, PUT_WALL_30, PW_LOW_30, PW_HIGH_30, KEY_CALL_2_30, KEY_CALL_3_30, KEY_PUT_2_30, KEY_PUT_3_30, GEX_NODE1_P_30, GEX_NODE1_V_30, GEX_NODE2_P_30, GEX_NODE2_V_30, GEX_NODE3_P_30, GEX_NODE3_V_30, GEX_NODE4_P_30, GEX_NODE4_V_30, GEX_NODE5_P_30, GEX_NODE5_V_30, sty_30, "30d")
+
+    if show_90
+        f_draw_set(GAMMA_FLIP_90, VOL_TRIGGER_90, HVL_90, CALL_WALL_90, CW_LOW_90, CW_HIGH_90, PUT_WALL_90, PW_LOW_90, PW_HIGH_90, KEY_CALL_2_90, KEY_CALL_3_90, KEY_PUT_2_90, KEY_PUT_3_90, GEX_NODE1_P_90, GEX_NODE1_V_90, GEX_NODE2_P_90, GEX_NODE2_V_90, GEX_NODE3_P_90, GEX_NODE3_V_90, GEX_NODE4_P_90, GEX_NODE4_V_90, GEX_NODE5_P_90, GEX_NODE5_V_90, sty_90, "90d")
+
+// ── Info Table ────────────────────────────────────────────────────
+var table tbl = table.new(position.top_right, 3, 12, border_width=1, border_color=color.new(color.gray, 60), bgcolor=color.new(color.black, 75))
+
+if barstate.islast and show_table
+    table.cell(tbl, 0, 0,  "GEX · " + SYM,   text_color=color.white,  text_size=size.normal, bgcolor=color.new(color.navy, 50))
+    table.cell(tbl, 1, 0,  "30 Day",           text_color=color.yellow, text_size=size.small,  bgcolor=color.new(color.navy, 50))
+    table.cell(tbl, 2, 0,  "90 Day",           text_color=color.silver, text_size=size.small,  bgcolor=color.new(color.navy, 50))
+
+    table.cell(tbl, 0, 1,  TIMESTAMP,          text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 1,  REGIME_30,          text_color=REGIME_30 == "positive_gamma" ? color.green : color.red, text_size=size.small)
+    table.cell(tbl, 2, 1,  REGIME_90,          text_color=REGIME_90 == "positive_gamma" ? color.green : color.red, text_size=size.small)
+
+    table.cell(tbl, 0, 2,  "Underlying",       text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 2,  str.tostring(UNDERLYING), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 2, 2,  "",                 text_color=color.white,  text_size=size.small)
+
+    table.cell(tbl, 0, 3,  "Gamma Flip",       text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 3,  str.tostring(GAMMA_FLIP_30), text_color=color.orange, text_size=size.small)
+    table.cell(tbl, 2, 3,  str.tostring(GAMMA_FLIP_90), text_color=color.orange, text_size=size.small)
+
+    table.cell(tbl, 0, 4,  "Call Wall",        text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 4,  str.tostring(CALL_WALL_30), text_color=color.green, text_size=size.small)
+    table.cell(tbl, 2, 4,  str.tostring(CALL_WALL_90), text_color=color.green, text_size=size.small)
+
+    table.cell(tbl, 0, 5,  "Put Wall",         text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 5,  str.tostring(PUT_WALL_30), text_color=color.red, text_size=size.small)
+    table.cell(tbl, 2, 5,  str.tostring(PUT_WALL_90), text_color=color.red, text_size=size.small)
+
+    table.cell(tbl, 0, 6,  "HVL",              text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 6,  str.tostring(HVL_30), text_color=color.aqua, text_size=size.small)
+    table.cell(tbl, 2, 6,  str.tostring(HVL_90), text_color=color.aqua, text_size=size.small)
+
+    table.cell(tbl, 0, 7,  "Net GEX",          text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 7,  NET_GEX_30,         text_color=color.white,  text_size=size.small)
+    table.cell(tbl, 2, 7,  NET_GEX_90,         text_color=color.white,  text_size=size.small)
+
+    table.cell(tbl, 0, 8,  "Net DEX",          text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 8,  str.tostring(math.round(NET_DEX_30 / 1000)) + "K", text_color=NET_DEX_30 >= 0 ? color.green : color.red, text_size=size.small)
+    table.cell(tbl, 2, 8,  str.tostring(math.round(NET_DEX_90 / 1000)) + "K", text_color=NET_DEX_90 >= 0 ? color.green : color.red, text_size=size.small)
+
+    table.cell(tbl, 0, 9,  "DEX Regime",       text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 9,  DEX_REGIME_30,      text_color=DEX_REGIME_30 == "dealer_long" ? color.green : color.red, text_size=size.small)
+    table.cell(tbl, 2, 9,  DEX_REGIME_90,      text_color=DEX_REGIME_90 == "dealer_long" ? color.green : color.red, text_size=size.small)
+
+    table.cell(tbl, 0, 10, "CPR Raw",          text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 10, str.tostring(CPR_RAW_30), text_color=CPR_RAW_30 > 1.0 ? color.green : color.red, text_size=size.small)
+    table.cell(tbl, 2, 10, str.tostring(CPR_RAW_90), text_color=CPR_RAW_90 > 1.0 ? color.green : color.red, text_size=size.small)
+
+    table.cell(tbl, 0, 11, "CPR Notional",     text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 11, str.tostring(CPR_NOTL_30), text_color=CPR_NOTL_30 > 1.0 ? color.green : color.red, text_size=size.small)
+    table.cell(tbl, 2, 11, str.tostring(CPR_NOTL_90), text_color=CPR_NOTL_90 > 1.0 ? color.green : color.red, text_size=size.small)
