@@ -13,6 +13,10 @@ from gex_levels.gex.gex_compute import compute_gex_levels
 from gex_levels.outputs.output_gex_file import write_gex_file
 from gex_levels.outputs.pinescript_output import print_pinescript_block
 
+
+
+from debug.debug_hub import hub
+
 # Setup of .env file to hold API keys.  Make sure to add to .gitignore and remove from all scripts so they are not on a public forum.
 from dotenv import load_dotenv
 load_dotenv()
@@ -20,6 +24,7 @@ load_dotenv()
 ####################################################################################################################################
 
 def main():
+
     parser = argparse.ArgumentParser(
         description="Compute daily GEX levels for any symbol — index (direct Schwab "
         "chain) or equity/ETF (Schwab, yfinance fallback). Whatever you "
@@ -71,6 +76,7 @@ Examples:
 
     args = parser.parse_args()
 
+
     symbols = (
         [s.upper() for s in args.symbols] if args.symbols else list(DEFAULT_SYMBOLS)
     )
@@ -80,6 +86,7 @@ Examples:
         # Schwab chain cache (keyed only on symbol+date, not max_dte) gets populated
         # with the wider window first; the 30d pass then reuses and filters it down.
         windows = sorted({int(d.strip()) for d in args.days.split(",")}, reverse=True)
+
     except ValueError:
         parser.error(f"--days must be 30, 90, or 30,90 (got: {args.days!r})")
     if not windows or any(w not in (30, 90) for w in windows):
@@ -104,23 +111,44 @@ Examples:
                     index_ticker_override=args.index,
                     vix_ticker_override=args.vix,
                 )
-            data30 = data.get(30)
-            data90 = data.get(90)
-            write_gex_file(data30, data90)
-            if data90:
+            write_gex_file(data.get(30))
+            write_gex_file(data.get(90))
+
+            print_pinescript_block(
+                data30=data.get(30),
+                data90=data.get(90),
+            )
+
+            # Print 30-day first, then 90-day if they exist
+            for w in (30, 90):
+                if w not in data:
+                    continue
+
+                d = data[w]
                 print(
-                    f"  [90d] Gamma Flip: {data90['gamma_flip']:.2f}  Call Wall: {data90['call_wall']:.2f}  Put Wall: {data90['put_wall']:.2f}  ({data90['regime']})"
+                    f"  [{w}d] Gamma Flip: {d['gamma_flip']:.2f}  "
+                    f"Call Wall: {d['call_wall']:.2f}  "
+                    f"Put Wall: {d['put_wall']:.2f}  "
+                    f"({d['regime']})"
                 )
-            if data30:
-                print(
-                    f"  [30d] Gamma Flip: {data30['gamma_flip']:.2f}  Call Wall: {data30['call_wall']:.2f}  Put Wall: {data30['put_wall']:.2f}  ({data30['regime']})"
-                )
-            print_pinescript_block(data30, data90)
+
             print()
-        except Exception as e:
-            print(f"  Error: {e}\n")
+
+        except Exception:
+            import traceback
+            traceback.print_exc()
+        #except Exception as e:
+        #    print(f"  Error: {e}\n")
 
     print(f"Done. Files in {OUTPUT_DIR}")
+
+    # PRINT IT TO THE TERMINAL
+    print("\n--- DEBUG VARIABLES COLLECTED ---")
+    for key, value in hub.variables.items():
+        print(f"{key}: {value}")
+    print("---------------------------------\n")
+
+
 
 
 if __name__ == "__main__":

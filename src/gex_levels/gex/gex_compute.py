@@ -34,7 +34,7 @@ from gex_levels.gex.gex_calculations import (
     read_previous_etf_walls,
     apply_hysteresis,
 )
-
+from debug.debug_hub import hub
 
 def compute_gex_levels(
     symbol,
@@ -59,9 +59,13 @@ def compute_gex_levels(
     """
     ####### Basic Setup of Symbol along with spot price #######################################################################################################################################
     symbol = symbol.upper()
+
+
     today_str = datetime.now().strftime("%Y-%m-%d")
 
-    is_direct_index = symbol in SCHWAB_DIRECT_INDEX
+
+    is_direct_index = symbol in SCHWAB_DIRECT_INDEX # T/F would be T if nothing passed to command line, and F is regular stock is passed
+
     schwab_symbol = SCHWAB_DIRECT_INDEX.get(symbol, symbol)
     cache_key = (symbol, today_str)
 
@@ -77,11 +81,14 @@ def compute_gex_levels(
         print(f"  Schwab fetch already failed this run — using {symbol} via yfinance")
     else:
         try:
-            print(f"  Fetching {schwab_symbol} from Schwab...")
+            print(f"  Fetching {schwab_symbol} from Schwab...") ## Next Line that Prints is 130 below
             spot, raw = fetch_schwab_chain(schwab_symbol, today_str, max_dte)
+            if raw is None:
+                raise ValueError("Schwab FAILED TO RETURN an option chain")
+
             _CHAIN_CACHE[cache_key] = raw
             _SCHWAB_SPOT_CACHE[cache_key] = spot
-            print(f"  Spot ({schwab_symbol}): {spot:.2f}")
+
         except Exception as e:
             if is_direct_index:
                 # No ETF proxy exists for a pure index under this design —
@@ -271,6 +278,9 @@ def compute_gex_levels(
     print(
         f"  GEX profile: {len(gex_profile)} strikes ({sum(1 for _, g in gex_profile if g > 0)} call, {sum(1 for _, g in gex_profile if g < 0)} put)"
     )
+    # Prints two blank lines of space to terminal to separate the 30d and 90d data
+    print("\n\n")
+
 
     # --- Fetch volatility index close (secondary reference field, not used in the math) ---
     vol_close = 0.0

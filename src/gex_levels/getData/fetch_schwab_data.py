@@ -1,9 +1,17 @@
 import os
 import sys
 from datetime import datetime, timedelta
+import pandas as pd
 
 
-from gex_levels.auth.api_auth import _schwab_get
+from gex_levels.config import BASE_DIR
+
+from gex_levels.auth.api_auth_schwab import _schwab_get
+
+sys.path.append(str(BASE_DIR))
+
+# Now this will work because the root is in sys.path
+from debug.debug_hub import hub
 
 
 def fetch_schwab_chain(schwab_symbol, today_str, max_dte):
@@ -25,7 +33,7 @@ def fetch_schwab_chain(schwab_symbol, today_str, max_dte):
     a list of (exp_str, calls_df, puts_df). For direct index symbols the
     strikes are already in index space (no ETF conversion needed).
     """
-    import pandas as pd
+
 
     to_date = (datetime.now() + timedelta(days=max_dte)).strftime("%Y-%m-%d")
 
@@ -38,6 +46,21 @@ def fetch_schwab_chain(schwab_symbol, today_str, max_dte):
             "strikeCount": 1,
         },
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     spot = enum_data.get("underlyingPrice")
     if not spot:
         raise ValueError(f"Schwab: no underlyingPrice for {schwab_symbol}")
@@ -93,6 +116,7 @@ def _parse_chain_response(data):
                         {
                             "strike": float(opt.get("strikePrice", 0)),
                             "openInterest": int(opt.get("openInterest") or 0),
+                            "totalVolume": int(opt.get("totalVolume") or 0),
                             "impliedVolatility": float(opt.get("volatility") or 0)
                             / 100.0,
                         }

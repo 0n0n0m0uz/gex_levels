@@ -11,6 +11,15 @@ You can also specify the project root using this command:
 > 
 >  Old School Way OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data")
 
+## Schwab API
+
+This script does not perform the original authorization which is an external 
+browser process schwab requires every seven days.
+
+This script will refresh the access token and get a refresh token at the high frequency
+schwab requires for security purposes.  
+
+It will also deal with the access/bearer token require on EVERY api data request.
 
 Computes gamma exposure per strike using Black-Scholes (or Schwab's own
 pre-computed greeks where used downstream), and derives key levels:
@@ -49,3 +58,7 @@ Usage:
     python gex_daily.py SPX NDX VIX SPY    # multiple symbols
 
 Dependencies: pip install yfinance numpy scipy requests
+
+## 0DTE GEX
+
+0DTE Gex requires normalization which divides the aggregate dollar gex by the spot price to remove the effect of the price level.

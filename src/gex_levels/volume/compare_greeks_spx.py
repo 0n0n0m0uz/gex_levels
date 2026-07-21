@@ -19,7 +19,7 @@ import yfinance as yf
 import numpy as np
 from scipy.stats import norm
 from gex_levels.config import RISK_FREE_RATE
-from gex_levels.auth.api_auth import SCHWAB_TOKEN_PATH as SCHWAB_TOKEN
+from gex_levels.auth.api_auth_schwab import SCHWAB_TOKEN_PATH as SCHWAB_TOKEN
 
 from dotenv import load_dotenv
 

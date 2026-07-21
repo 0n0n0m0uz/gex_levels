@@ -31,7 +31,7 @@ load_dotenv()
 
 SCHWAB_CLIENT_ID = os.getenv("SCHWAB_CLIENT_ID")
 SCHWAB_CLIENT_SECRET = os.getenv("SCHWAB_CLIENT_SECRET")
-from gex_levels.auth.api_auth import SCHWAB_TOKEN_PATH as SCHWAB_TOKEN
+from gex_levels.auth.api_auth_schwab import SCHWAB_TOKEN_PATH as SCHWAB_TOKEN
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 

@@ -12,7 +12,8 @@ def _schwab_refresh_token(token_data):
     """Refresh an expired Schwab access token using the stored refresh_token."""
     import requests
 
-    # Pull the variables from the environment (the .env file)
+    # Pull the variables from the environment (the .env file) This works because load_dotenv() is executed prior to this file
+    # since main.py is executed first on the CLI this file can access that variable
     client_id = os.getenv("SCHWAB_CLIENT_ID")
     client_secret = os.getenv("SCHWAB_CLIENT_SECRET")
 
