@@ -2,7 +2,10 @@ import os
 import sys
 
 from gex_levels.config import OUTPUT_DIR
+from rich.console import Console
+from rich.rule import Rule
 
+console = Console(force_terminal=True)
 
 def write_gex_file(data30=None, data90=None):
     """Write whichever DTE window(s) are given to a single key=value text file."""
@@ -51,4 +54,6 @@ def write_gex_file(data30=None, data90=None):
             write_section(f, data30, "_30")
         if data90:
             write_section(f, data90, "_90")
-    print(f"  Wrote {path}")
+    console.print(
+        f"[bold italic grey42]Exported data to '{path}' [/bold italic grey42]"
+    )

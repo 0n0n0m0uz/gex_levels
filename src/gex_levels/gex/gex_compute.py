@@ -5,6 +5,11 @@ from typing import Optional, Union
 
 import yfinance as yf
 
+from rich.console import Console
+from rich.rule import Rule
+
+# May Want to Change because this could throw error for someone without color compatible terminal
+console = Console(force_terminal=True)
 
 from gex_levels.config import (
     MAX_DTE,
@@ -76,12 +81,18 @@ def compute_gex_levels(
         # Reuse the same chain+spot snapshot across the 30d/90d passes —
         # avoids a second Schwab call and keeps both windows consistent.
         spot = _SCHWAB_SPOT_CACHE[cache_key]
-        print(f"  Reusing cached {schwab_symbol} chain — spot: {spot:.2f}")
+        print(f"Reusing cached {schwab_symbol} chain — spot: {spot:.2f}")
     elif cache_key in _SCHWAB_FETCH_FAILED:
         print(f"  Schwab fetch already failed this run — using {symbol} via yfinance")
     else:
         try:
-            print(f"  Fetching {schwab_symbol} from Schwab...") ## Next Line that Prints is 130 below
+            #print(f"  Fetching {schwab_symbol} from Schwab...") ## Next Line that Prints is 130 below
+
+            console.print()
+            console.print(
+                f"[bold italic grey42]Fetching {schwab_symbol} from Schwab[/bold italic grey42]"
+            )
+
             spot, raw = fetch_schwab_chain(schwab_symbol, today_str, max_dte)
             if raw is None:
                 raise ValueError("Schwab FAILED TO RETURN an option chain")
@@ -124,7 +135,13 @@ def compute_gex_levels(
                 )
         if not spot or spot <= 0:
             raise ValueError(f"Could not get price for {symbol}")
-        print(f"  Spot: ${spot:.2f}")
+        #print(f"  Spot: ${spot:.2f}")
+
+    console.print(Rule("[bold green]Market Data[/bold green]"))
+    console.print()
+
+    console.print(f"  {'Spot':<22} {spot:.2f}")
+
 
     #### Fetch live risk-free rate from SOFR (Fed FRED API)  ########################################################################################
     try:
@@ -135,10 +152,14 @@ def compute_gex_levels(
         )
         sofr = float(r.text.strip().split("\n")[-1].split(",")[1]) / 100
         risk_free_rate = sofr
-        print(f"  Risk-free rate: {risk_free_rate:.4f} (SOFR)")
+        #print(f"  Risk-free rate: {risk_free_rate:.4f} (SOFR)")
+
+        console.print(f"  {'Risk-Free Rate':<22} {risk_free_rate:.2%} (SOFR)")
+        #print(f"  Risk-free rate: {risk_free_rate:.2%} (SOFR)")
     except Exception:
         risk_free_rate = RISK_FREE_RATE
-        print(f"  Risk-free rate: {risk_free_rate:.4f} (fallback — SOFR unavailable)")
+        #print(f"  Risk-free rate: {risk_free_rate:.4f} (fallback — SOFR unavailable)")
+        console.print(f"  {'Risk-Free Rate':<22}{risk_free_rate:.4f} (fallback — SOFR unavailable)")
 
     ####  Raw Data is Downloaded, filtered according to Business Logic and then separated into Numpy Arrays for more efficient processing ####################################################################################################################################
     tau = DTE_TAU_30 if max_dte <= 30 else DTE_TAU_90
@@ -151,9 +172,14 @@ def compute_gex_levels(
         ticker, spot, max_dte, symbol, today_str, dte_tau=tau
     )
 
-    print(
-        f"  {exp_count} expirations, {len(calls)} calls, {len(puts)} puts  (tau={tau:.0f}d)"
-    )
+    # print(
+    #     f"  {exp_count} expirations, {len(calls)} calls, {len(puts)} puts  (tau={tau:.0f}d)"
+    # )
+
+    console.print(f"  {'Expirations':<22} {exp_count}")
+    console.print(f"  {'Calls':<22} {len(calls):,}")
+    console.print(f"  {'Puts':<22} {len(puts):,}")
+    console.print(f"  {'Tau':<22} {tau:.0f}d")
 
     if len(calls) == 0 and len(puts) == 0:
         raise ValueError(f"No options data for {symbol}")
@@ -194,17 +220,40 @@ def compute_gex_levels(
         )
         put_wall_low = put_wall_high = put_wall
 
+    console.print(Rule("[bold magenta]Dealer Positioning[/bold magenta]"))
+    console.print()
+
     # Net GEX and regime
     net_gex = sum(call_gex.values()) + sum(put_gex.values())
     regime = "positive_gamma" if net_gex >= 0 else "negative_gamma"
 
     # --- Net DEX and DEX regime ---
+    # net_gex, regime = compute_net_gex(calls, puts, spot, risk_free_rate)
+    # gex_color = "red" if net_gex < 0 else "green"
+    #
+    # console.print(
+    #     f"  {'Net GEX':<22}"
+    #     f"[{gex_color}]${net_gex:,.0f}[/{gex_color}] "
+    #     f"({gex_regime})"
+    # )
+
+
+    # --- Net DEX and DEX regime ---
     net_dex, dex_regime = compute_net_dex(calls, puts, spot, risk_free_rate)
-    print(f"  Net DEX: {net_dex:,.0f} ({dex_regime})")
+    dex_color = "red" if net_dex < 0 else "green"
+
+    console.print(
+        f"  {'Net DEX':<22} "
+        f"[{dex_color}]${net_dex:,.0f}[/{dex_color}] "
+        f"({dex_regime})"
+    )
+    #print(f"  Net DEX: {net_dex:,.0f} ({dex_regime})")
 
     # --- Call/Put ratios ---
     cpr_raw, cpr_notl = compute_cpr(calls, puts)
-    print(f"  CPR raw: {cpr_raw:.4f}  CPR notional: {cpr_notl:.4f}")
+    #print(f"  CPR raw: {cpr_raw:.4f}  CPR notional: {cpr_notl:.4f}")
+    console.print(f"  {'CPR Raw':<22} {cpr_raw:.4f}")
+    console.print(f"  {'CPR Notional':<22} {cpr_notl:.4f}")
 
     # --- HVL and Vol Trigger (ticker price space) ---
     hvl = compute_hvl(call_gex, put_gex)
@@ -217,10 +266,25 @@ def compute_gex_levels(
     skew_slope, skew_r2 = compute_skew_slope(calls, puts, spot)
     skew_alpha = 0.3 + 0.6 * skew_r2  # scales 0.3 (noisy fit) to 0.9 (clean fit)
     # skew_alpha = 0.7
-    print(
-        f"  ATM skew slope: {skew_slope:.6f}  R²: {skew_r2:.3f}  alpha: {skew_alpha:.2f}"
-    )
-    print(f"  Computing gamma flip...")
+
+    console.print()
+    console.print(Rule("[bold blue]Volatility[/bold blue]"))
+    console.print()
+
+    # print(
+    #     f"  ATM skew slope: {skew_slope:.6f}  R²: {skew_r2:.3f}  alpha: {skew_alpha:.2f}"
+    # )
+
+    console.print(f"  {'ATM Skew Slope':<22} {skew_slope:.6f}")
+    console.print(f"  {'R²':<22} {skew_r2:.3f}")
+    console.print(f"  {'Alpha':<22} {skew_alpha:.2f}")
+
+    #print(f"  Computing gamma flip...")
+
+
+    console.print()
+    console.print(Rule("[bold yellow]GEX Levels[/bold yellow]"))
+    console.print()
 
     gamma_flip = find_gamma_flip(
         calls, puts, spot, skew_slope, skew_alpha, risk_free_rate
@@ -232,6 +296,16 @@ def compute_gex_levels(
     etf_call_wall = float(call_wall)
     etf_put_wall = float(put_wall)
     etf_gamma_flip = float(gamma_flip)
+
+    console.print(f"  {'Gamma Flip':<22} {gamma_flip:.2f}")
+    console.print(f"  {'Call Wall':<22} {call_wall:.2f}")
+    console.print(f"  {'Put Wall':<22} {put_wall:.2f}")
+    # print(f"  HVL: {hvl:.2f}  Vol Trigger: {vol_trigger:.2f}")
+    console.print(f"  {'HVL':<22} {hvl:.2f}")
+    console.print(f"  {'Vol Trigger':<22} {vol_trigger:.2f}")
+    console.print()
+
+
 
     # --- Optionally convert to index/futures price space ---
     # Direct-index fetches (SPX/NDX/VIX) are already in index space — no conversion.
@@ -260,24 +334,41 @@ def compute_gex_levels(
                 net_dex *= ratio
                 spot = index_price
             except Exception as e:
-                print(
-                    f"  Warning: could not fetch {index_ticker}, levels stay in {symbol} price space: {e}"
+                console.print(
+                    f"[bold italic grey42]Warning: could not fetch {index_ticker}, levels stay in {symbol} price space: {e}[/bold italic grey42]"
                 )
+
+
         else:
-            print(
-                f"  No index conversion requested — levels stay in {symbol} price space"
+            console.print(
+                f"[bold italic grey42]No index conversion requested — levels stay in {symbol} price space[/bold italic grey42]"
             )
 
-    print(f"  HVL: {hvl:.2f}  Vol Trigger: {vol_trigger:.2f}")
+
+
+
 
     # Convert profile strikes to output price space
     gex_profile = sorted(
         [(round(s * ratio), int(profile_by_strike[s])) for s in profile_by_strike],
         key=lambda p: p[0],
     )
-    print(
-        f"  GEX profile: {len(gex_profile)} strikes ({sum(1 for _, g in gex_profile if g > 0)} call, {sum(1 for _, g in gex_profile if g < 0)} put)"
+    # print(
+    #     f"  GEX profile: {len(gex_profile)} strikes ({sum(1 for _, g in gex_profile if g > 0)} call, {sum(1 for _, g in gex_profile if g < 0)} put)"
+    # )
+
+    console.print(
+        f"  GEX profile: [cyan]{len(gex_profile)}[/cyan] strikes "
+        f"({sum(1 for _, g in gex_profile if g > 0)} call, "
+        f"{sum(1 for _, g in gex_profile if g < 0)} put)"
     )
+
+    console.print()
+    console.print()
+    console.print(
+        Rule(characters="═", style="bold dark_magenta")
+    )
+
     # Prints two blank lines of space to terminal to separate the 30d and 90d data
     print("\n\n")
 

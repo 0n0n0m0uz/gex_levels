@@ -6,6 +6,10 @@ gex_daily.py - Daily GEX level calculator and shared library
 import argparse
 
 # External Modules
+from rich.console import Console
+from rich.rule import Rule
+
+console = Console(force_terminal=True)
 
 # Import Submodules
 from gex_levels.config import DEFAULT_SYMBOLS, OUTPUT_DIR
@@ -101,10 +105,15 @@ Examples:
 
     for symbol in symbols:
         try:
-            print(f"[{symbol}] — downloading options chain...")
+            #print(f"[{symbol}] — downloading options chain...")
+            console.print(
+                f"[bold italic grey42]...Downloading {symbol} options chain...[/bold italic grey42]"
+            )
             data = {}
             for w in windows:
-                print(f"[{symbol}] — computing {w}-day window...")
+                console.print(
+                    f"[bold italic grey42]...Computing {w}-day window for {symbol}...[/bold italic grey42]"
+                )
                 data[w] = compute_gex_levels(
                     symbol,
                     max_dte=w,
