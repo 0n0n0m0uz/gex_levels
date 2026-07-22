@@ -120,8 +120,12 @@ Examples:
                     index_ticker_override=args.index,
                     vix_ticker_override=args.vix,
                 )
-            write_gex_file(data.get(30))
-            write_gex_file(data.get(90))
+            #write_gex_file(data.get(30))
+            #write_gex_file(data.get(90))
+            write_gex_file(
+                data30=data.get(30),
+                data90=data.get(90),
+            )
 
             print_pinescript_block(
                 data30=data.get(30),

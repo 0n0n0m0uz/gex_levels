@@ -13,14 +13,14 @@ You can also specify the project root using this command:
 
 ## Schwab API
 
-This script does not perform the original authorization which is an external 
-browser process schwab requires every seven days.
+The Schwab API Access tokens are only valid for 7 days after which you must re-authenticate.
 
-This script will refresh the access token and get a refresh token at the high frequency
-schwab requires for security purposes.  
+The below command will initiate the manual process which involves signing in via webbrowser and a 2-factor code to email/phone
+> uv run check_schwab_token
 
-It will also deal with the access/bearer token require on EVERY api data request.
+The script automatically handles the 30 minute refresh tokens and will keep updating the refresh tokens and storing them for the full 7-day access token lifetime.
 
+--- 
 Computes gamma exposure per strike using Black-Scholes (or Schwab's own
 pre-computed greeks where used downstream), and derives key levels:
   - Gamma Flip: spot price where net dealer GEX crosses zero
