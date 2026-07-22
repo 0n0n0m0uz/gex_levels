@@ -1,9 +1,11 @@
 [project]
 name = "gex-levels"
 version = "0.1.0"
-description = "Add your description here"
+description = "calculate gamma exposure for specific stocks and time periods"
 readme = "README.md"
 requires-python = ">=3.13"
+
+# dependencies required to run final project
 dependencies = [
     "numpy>=2.5.1",
     "pandas>=3.0.3",
@@ -17,18 +19,24 @@ dependencies = [
     "yfinance>=1.5.1",
 ]
 
+#tool used to maintain and manage package for distribution
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
+
+# dir inside my project hierarchy
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# Used for local development dependencies(those working on source code)
 [dependency-groups]
 dev = [
     "coverage>=7.15.2",
 ]
 
+# terminal commands 
 [project.scripts]
+# uv gex on cli runs main.py
 gex = "gex_levels.main:main"
 check-schwab-token = "gex_levels.auth.check_schwab_token:main"
