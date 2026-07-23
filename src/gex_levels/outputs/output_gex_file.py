@@ -50,6 +50,7 @@ def write_gex_file(data30=None, data90=None):
             "gamma_flip": round(data["gamma_flip"], 2),
             "vol_trigger": round(data["vol_trigger"], 2),
             "hvl": round(data["hvl"], 2),
+            "max_pain": round(data["max_pain"], 2),
             "call_wall": round(data["call_wall"], 2),
             "call_wall_low": round(data.get("call_wall_low", data["call_wall"]), 2),
             "call_wall_high": round(data.get("call_wall_high", data["call_wall"]), 2),

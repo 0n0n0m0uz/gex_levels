@@ -6,71 +6,73 @@ indicator("GEX Levels Daily", overlay=true, max_lines_count=500, max_labels_coun
 // ═══════════════════════════════════════════════════════════════
 //  PASTE UPDATED DATA HERE EACH DAY
 // ═══════════════════════════════════════════════════════════════
-var string SYM        = "QQQ"
-var string TIMESTAMP  = "2026-07-21"
-var float UNDERLYING  = 708.97
+var string SYM        = "USO"
+var string TIMESTAMP  = "2026-07-23"
+var float UNDERLYING  = 140.70
 
 // -- 30D levels ----------------------------------------------
-var string REGIME_30     = "negative_gamma"
-var float GAMMA_FLIP_30  = 710.94
-var float VOL_TRIGGER_30 = 711.00
-var float HVL_30         = 705.76
-var float CALL_WALL_30   = 729.00
-var float CW_LOW_30      = 713.00
-var float CW_HIGH_30     = 729.00
-var float PUT_WALL_30    = 690.00
-var float PW_LOW_30      = 700.00
-var float PW_HIGH_30     = 690.00
-var float KEY_CALL_2_30  = 720.00
-var float KEY_CALL_3_30  = 730.00
-var float KEY_PUT_2_30   = 700.00
-var float KEY_PUT_3_30   = 695.00
-var string NET_GEX_30    = "-254.6M"
-var float  NET_DEX_30    = -18886862.0
+var string REGIME_30     = "positive_gamma"
+var float GAMMA_FLIP_30  = 140.70
+var float VOL_TRIGGER_30 = 145.00
+var float HVL_30         = 137.48
+var float MAX_PAIN_30    = 122.00
+var float CALL_WALL_30   = 150.00
+var float CW_LOW_30      = 143.00
+var float CW_HIGH_30     = 150.00
+var float PUT_WALL_30    = 125.00
+var float PW_LOW_30      = 138.00
+var float PW_HIGH_30     = 125.00
+var float KEY_CALL_2_30  = 140.00
+var float KEY_CALL_3_30  = 135.00
+var float KEY_PUT_2_30   = 118.00
+var float KEY_PUT_3_30   = 128.00
+var string NET_GEX_30    = "+34.8M"
+var float  NET_DEX_30    = -7632868.8
 var string DEX_REGIME_30 = "dealer_short"
-var float  CPR_RAW_30    = 0.5785
-var float  CPR_NOTL_30   = 0.6261
-var float GEX_NODE1_P_30 = 700.00
-var float GEX_NODE1_V_30 = -250541384.0
-var float GEX_NODE2_P_30 = 690.00
-var float GEX_NODE2_V_30 = -172521778.0
-var float GEX_NODE3_P_30 = 695.00
-var float GEX_NODE3_V_30 = -142157325.0
-var float GEX_NODE4_P_30 = 720.00
-var float GEX_NODE4_V_30 = 118945855.0
-var float GEX_NODE5_P_30 = 730.00
-var float GEX_NODE5_V_30 = 110333517.0
+var float  CPR_RAW_30    = 2.8766
+var float  CPR_NOTL_30   = 3.1101
+var float GEX_NODE1_P_30 = 140.00
+var float GEX_NODE1_V_30 = 13372200.0
+var float GEX_NODE2_P_30 = 135.00
+var float GEX_NODE2_V_30 = 5860928.0
+var float GEX_NODE3_P_30 = 136.00
+var float GEX_NODE3_V_30 = 3427987.0
+var float GEX_NODE4_P_30 = 130.00
+var float GEX_NODE4_V_30 = 1702016.0
+var float GEX_NODE5_P_30 = 150.00
+var float GEX_NODE5_V_30 = 1598027.0
 
 // -- 90D levels ----------------------------------------------
-var string REGIME_90     = "negative_gamma"
-var float GAMMA_FLIP_90  = 713.41
-var float VOL_TRIGGER_90 = 714.00
-var float HVL_90         = 705.07
-var float CALL_WALL_90   = 735.00
-var float CW_LOW_90      = 715.00
-var float CW_HIGH_90     = 735.00
-var float PUT_WALL_90    = 681.00
-var float PW_LOW_90      = 700.00
-var float PW_HIGH_90     = 681.00
-var float KEY_CALL_2_90  = 730.00
-var float KEY_CALL_3_90  = 733.00
-var float KEY_PUT_2_90   = 700.00
-var float KEY_PUT_3_90   = 690.00
-var string NET_GEX_90    = "-923.2M"
-var float  NET_DEX_90    = -51018127.2
+var string REGIME_90     = "positive_gamma"
+var float GAMMA_FLIP_90  = 140.70
+var float VOL_TRIGGER_90 = 145.00
+var float HVL_90         = 136.18
+var float MAX_PAIN_90    = 122.00
+var float CALL_WALL_90   = 150.00
+var float CW_LOW_90      = 145.00
+var float CW_HIGH_90     = 150.00
+var float PUT_WALL_90    = 120.00
+var float PW_LOW_90      = 130.00
+var float PW_HIGH_90     = 120.00
+var float KEY_CALL_2_90  = 140.00
+var float KEY_CALL_3_90  = 135.00
+var float KEY_PUT_2_90   = 118.00
+var float KEY_PUT_3_90   = 127.00
+var string NET_GEX_90    = "+47.1M"
+var float  NET_DEX_90    = -11912161.3
 var string DEX_REGIME_90 = "dealer_short"
-var float  CPR_RAW_90    = 0.6262
-var float  CPR_NOTL_90   = 0.6863
-var float GEX_NODE1_P_90 = 700.00
-var float GEX_NODE1_V_90 = -511210965.0
-var float GEX_NODE2_P_90 = 690.00
-var float GEX_NODE2_V_90 = -419941242.0
-var float GEX_NODE3_P_90 = 695.00
-var float GEX_NODE3_V_90 = -333339619.0
-var float GEX_NODE4_P_90 = 730.00
-var float GEX_NODE4_V_90 = 289827199.0
-var float GEX_NODE5_P_90 = 680.00
-var float GEX_NODE5_V_90 = -261350413.0
+var float  CPR_RAW_90    = 2.6647
+var float  CPR_NOTL_90   = 2.8842
+var float GEX_NODE1_P_90 = 140.00
+var float GEX_NODE1_V_90 = 16016142.0
+var float GEX_NODE2_P_90 = 135.00
+var float GEX_NODE2_V_90 = 7228151.0
+var float GEX_NODE3_P_90 = 130.00
+var float GEX_NODE3_V_90 = 3991649.0
+var float GEX_NODE4_P_90 = 136.00
+var float GEX_NODE4_V_90 = 3538961.0
+var float GEX_NODE5_P_90 = 150.00
+var float GEX_NODE5_V_90 = 2555844.0
 
 // ═══════════════════════════════════════════════════════════════
 
@@ -80,6 +82,7 @@ show_zones    = input.bool(true,  "Show Call/Put Wall Zones")
 show_key      = input.bool(true,  "Show Key Call/Put Levels")
 show_nodes    = input.bool(true,  "Show Top GEX Profile Nodes")
 show_underlyi = input.bool(true,  "Show Underlying Reference Line")
+show_maxpain  = input.bool(true,  "Show Max Pain Line")
 show_table    = input.bool(true,  "Show Info Table")
 lw            = input.int(2, "Line Width", minval=1, maxval=4)
 
@@ -99,6 +102,7 @@ C_KEY_P  = color.new(color.maroon,  10)
 C_UND    = color.new(color.white,   30)
 C_NODE_C = color.new(color.teal,    20)
 C_NODE_P = color.new(color.fuchsia, 20)
+C_MAXP   = color.new(color.purple,  10)
 
 // ── Draw functions ────────────────────────────────────────────────
 f_line(price, col, sty) =>
@@ -108,7 +112,7 @@ f_label(price, txt, col, x_off) =>
     label.new(bar_index + x_off, price, txt, color=color.new(col, 88), textcolor=col, style=label.style_label_lower_left, size=size.small)
 
 // Each label has a unique x offset so they never overlap regardless of price
-f_draw_set(gf, vt, hvl, cw, cw_low, cw_high, pw, pw_low, pw_high, kc2, kc3, kp2, kp3, n1p, n1v, n2p, n2v, n3p, n3v, n4p, n4v, n5p, n5v, sty, lbl_suffix) =>
+f_draw_set(gf, vt, hvl, mp, cw, cw_low, cw_high, pw, pw_low, pw_high, kc2, kc3, kp2, kp3, n1p, n1v, n2p, n2v, n3p, n3v, n4p, n4v, n5p, n5v, sty, lbl_suffix) =>
     f_line(cw, C_CALL, sty)
     f_label(cw,  "Call Wall " + lbl_suffix + "  " + str.tostring(cw),  C_CALL, 2)
 
@@ -124,6 +128,10 @@ f_draw_set(gf, vt, hvl, cw, cw_low, cw_high, pw, pw_low, pw_high, kc2, kc3, kp2,
 
     f_line(hvl, C_HVL, sty == line.style_solid ? line.style_dashed : line.style_dotted)
     f_label(hvl, "HVL " + lbl_suffix + "  " + str.tostring(hvl), C_HVL, 42)
+
+    if show_maxpain
+        f_line(mp, C_MAXP, sty == line.style_solid ? line.style_dashed : line.style_dotted)
+        f_label(mp, "Max Pain " + lbl_suffix + "  " + str.tostring(mp), C_MAXP, 142)
 
     if show_key
         f_line(kc2, C_KEY_C, sty == line.style_solid ? line.style_dashed : line.style_dotted)
@@ -165,10 +173,10 @@ if barstate.islast
         f_label(UNDERLYING, "Underlying  " + str.tostring(UNDERLYING), C_UND, 2)
 
     if show_30
-        f_draw_set(GAMMA_FLIP_30, VOL_TRIGGER_30, HVL_30, CALL_WALL_30, CW_LOW_30, CW_HIGH_30, PUT_WALL_30, PW_LOW_30, PW_HIGH_30, KEY_CALL_2_30, KEY_CALL_3_30, KEY_PUT_2_30, KEY_PUT_3_30, GEX_NODE1_P_30, GEX_NODE1_V_30, GEX_NODE2_P_30, GEX_NODE2_V_30, GEX_NODE3_P_30, GEX_NODE3_V_30, GEX_NODE4_P_30, GEX_NODE4_V_30, GEX_NODE5_P_30, GEX_NODE5_V_30, sty_30, "30d")
+        f_draw_set(GAMMA_FLIP_30, VOL_TRIGGER_30, HVL_30, MAX_PAIN_30, CALL_WALL_30, CW_LOW_30, CW_HIGH_30, PUT_WALL_30, PW_LOW_30, PW_HIGH_30, KEY_CALL_2_30, KEY_CALL_3_30, KEY_PUT_2_30, KEY_PUT_3_30, GEX_NODE1_P_30, GEX_NODE1_V_30, GEX_NODE2_P_30, GEX_NODE2_V_30, GEX_NODE3_P_30, GEX_NODE3_V_30, GEX_NODE4_P_30, GEX_NODE4_V_30, GEX_NODE5_P_30, GEX_NODE5_V_30, sty_30, "30d")
 
     if show_90
-        f_draw_set(GAMMA_FLIP_90, VOL_TRIGGER_90, HVL_90, CALL_WALL_90, CW_LOW_90, CW_HIGH_90, PUT_WALL_90, PW_LOW_90, PW_HIGH_90, KEY_CALL_2_90, KEY_CALL_3_90, KEY_PUT_2_90, KEY_PUT_3_90, GEX_NODE1_P_90, GEX_NODE1_V_90, GEX_NODE2_P_90, GEX_NODE2_V_90, GEX_NODE3_P_90, GEX_NODE3_V_90, GEX_NODE4_P_90, GEX_NODE4_V_90, GEX_NODE5_P_90, GEX_NODE5_V_90, sty_90, "90d")
+        f_draw_set(GAMMA_FLIP_90, VOL_TRIGGER_90, HVL_90, MAX_PAIN_90, CALL_WALL_90, CW_LOW_90, CW_HIGH_90, PUT_WALL_90, PW_LOW_90, PW_HIGH_90, KEY_CALL_2_90, KEY_CALL_3_90, KEY_PUT_2_90, KEY_PUT_3_90, GEX_NODE1_P_90, GEX_NODE1_V_90, GEX_NODE2_P_90, GEX_NODE2_V_90, GEX_NODE3_P_90, GEX_NODE3_V_90, GEX_NODE4_P_90, GEX_NODE4_V_90, GEX_NODE5_P_90, GEX_NODE5_V_90, sty_90, "90d")
 
 // ── Info Table ────────────────────────────────────────────────────
 var table tbl = table.new(position.top_right, 3, 12, border_width=1, border_color=color.new(color.gray, 60), bgcolor=color.new(color.black, 75))

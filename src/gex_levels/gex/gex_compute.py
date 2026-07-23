@@ -35,6 +35,7 @@ from gex_levels.gex.gex_calculations import (
     compute_wall_zones,
     compute_vol_trigger,
     compute_skew_slope,
+    compute_max_pain,
     find_gamma_flip,
     read_previous_etf_walls,
     apply_hysteresis,
@@ -136,12 +137,11 @@ def compute_gex_levels(
         if not spot or spot <= 0:
             raise ValueError(f"Could not get price for {symbol}")
         #print(f"  Spot: ${spot:.2f}")
-
+##################################################################
     console.print(Rule("[bold green]Market Data[/bold green]"))
     console.print()
-
-    console.print(f"  {'Spot':<22} {spot:.2f}")
-
+    console.print(f"  {'Spot':<22} ${spot:.2f}")
+#####################################################################
 
     #### Fetch live risk-free rate from SOFR (Fed FRED API)  ########################################################################################
     try:
@@ -152,13 +152,10 @@ def compute_gex_levels(
         )
         sofr = float(r.text.strip().split("\n")[-1].split(",")[1]) / 100
         risk_free_rate = sofr
-        #print(f"  Risk-free rate: {risk_free_rate:.4f} (SOFR)")
-
         console.print(f"  {'Risk-Free Rate':<22} {risk_free_rate:.2%} (SOFR)")
         #print(f"  Risk-free rate: {risk_free_rate:.2%} (SOFR)")
     except Exception:
         risk_free_rate = RISK_FREE_RATE
-        #print(f"  Risk-free rate: {risk_free_rate:.4f} (fallback — SOFR unavailable)")
         console.print(f"  {'Risk-Free Rate':<22}{risk_free_rate:.4f} (fallback — SOFR unavailable)")
 
     ####  Raw Data is Downloaded, filtered according to Business Logic and then separated into Numpy Arrays for more efficient processing ####################################################################################################################################
@@ -171,15 +168,13 @@ def compute_gex_levels(
     calls, puts, exp_count = collect_chain(
         ticker, spot, max_dte, symbol, today_str, dte_tau=tau
     )
-
-    # print(
-    #     f"  {exp_count} expirations, {len(calls)} calls, {len(puts)} puts  (tau={tau:.0f}d)"
-    # )
-
+##########################################################################
     console.print(f"  {'Expirations':<22} {exp_count}")
     console.print(f"  {'Calls':<22} {len(calls):,}")
     console.print(f"  {'Puts':<22} {len(puts):,}")
-    console.print(f"  {'Tau':<22} {tau:.0f}d")
+    console.print(f"  {'Tau':<22} {tau:.0f}-days")
+###########################################################################
+
 
     if len(calls) == 0 and len(puts) == 0:
         raise ValueError(f"No options data for {symbol}")
@@ -242,21 +237,23 @@ def compute_gex_levels(
     net_dex, dex_regime = compute_net_dex(calls, puts, spot, risk_free_rate)
     dex_color = "red" if net_dex < 0 else "green"
 
+    # --- Call/Put ratios ---
+    cpr_raw, cpr_notl = compute_cpr(calls, puts)
+
+##########################################################################
+
     console.print(
         f"  {'Net DEX':<22} "
         f"[{dex_color}]${net_dex:,.0f}[/{dex_color}] "
         f"({dex_regime})"
     )
-    #print(f"  Net DEX: {net_dex:,.0f} ({dex_regime})")
-
-    # --- Call/Put ratios ---
-    cpr_raw, cpr_notl = compute_cpr(calls, puts)
-    #print(f"  CPR raw: {cpr_raw:.4f}  CPR notional: {cpr_notl:.4f}")
-    console.print(f"  {'CPR Raw':<22} {cpr_raw:.4f}")
-    console.print(f"  {'CPR Notional':<22} {cpr_notl:.4f}")
+    console.print(f"  {'CPR Raw':<22} {cpr_raw:.3f}")
+    console.print(f"  {'CPR Notional':<22} {cpr_notl:.3f}")
+###########################################################################
 
     # --- HVL and Vol Trigger (ticker price space) ---
     hvl = compute_hvl(call_gex, put_gex)
+    max_pain = compute_max_pain(calls, puts)
     vol_trigger = compute_vol_trigger(
         call_gex, gamma_flip=0.0
     )  # placeholder; recomputed below
@@ -267,24 +264,18 @@ def compute_gex_levels(
     skew_alpha = 0.3 + 0.6 * skew_r2  # scales 0.3 (noisy fit) to 0.9 (clean fit)
     # skew_alpha = 0.7
 
+######################################################################################
     console.print()
     console.print(Rule("[bold blue]Volatility[/bold blue]"))
     console.print()
-
-    # print(
-    #     f"  ATM skew slope: {skew_slope:.6f}  R²: {skew_r2:.3f}  alpha: {skew_alpha:.2f}"
-    # )
-
-    console.print(f"  {'ATM Skew Slope':<22} {skew_slope:.6f}")
+    console.print(f"  {'ATM Skew Slope':<22} {skew_slope:.5f}")
     console.print(f"  {'R²':<22} {skew_r2:.3f}")
     console.print(f"  {'Alpha':<22} {skew_alpha:.2f}")
-
+########################################################################################
     #print(f"  Computing gamma flip...")
 
 
-    console.print()
-    console.print(Rule("[bold yellow]GEX Levels[/bold yellow]"))
-    console.print()
+
 
     gamma_flip = find_gamma_flip(
         calls, puts, spot, skew_slope, skew_alpha, risk_free_rate
@@ -297,14 +288,41 @@ def compute_gex_levels(
     etf_put_wall = float(put_wall)
     etf_gamma_flip = float(gamma_flip)
 
-    console.print(f"  {'Gamma Flip':<22} {gamma_flip:.2f}")
-    console.print(f"  {'Call Wall':<22} {call_wall:.2f}")
-    console.print(f"  {'Put Wall':<22} {put_wall:.2f}")
-    # print(f"  HVL: {hvl:.2f}  Vol Trigger: {vol_trigger:.2f}")
-    console.print(f"  {'HVL':<22} {hvl:.2f}")
-    console.print(f"  {'Vol Trigger':<22} {vol_trigger:.2f}")
+
+##### Descending Sorted Gex Levels #######################################################################
+
+    from rich.panel import Panel
+    from rich import box
+
+    console.print()
+    console.print(Rule("[bold yellow]GEX Levels[/bold yellow]"))
     console.print()
 
+    levels = [
+        ("Gamma Flip", gamma_flip),
+        ("Call Wall", call_wall),
+        ("Put Wall", put_wall),
+        ("HVL", hvl),
+        ("Vol Trigger", vol_trigger),
+        ("Max Pain", max_pain),
+    ]
+
+    # Sort descending by price
+    levels.sort(key=lambda x: x[1], reverse=True)
+
+    # Build the text lines inside the block
+    lines = []
+    for label, val in levels:
+        lines.append(f"  {label:<22} ${val:,.2f}")
+
+    content = "\n".join(lines)
+
+    # Wrap it in a panel with a down arrow on the right side of the border
+    console.print(Panel(content, box=box.ROUNDED, expand=False, title="[cyan]⬇[/cyan]", title_align="right"))
+
+    console.print()
+
+#############################################################################
 
 
     # --- Optionally convert to index/futures price space ---
@@ -331,6 +349,7 @@ def compute_gex_levels(
                 put_wall *= ratio
                 hvl *= ratio
                 vol_trigger *= ratio
+                max_pain *= ratio
                 net_dex *= ratio
                 spot = index_price
             except Exception as e:
@@ -401,6 +420,7 @@ def compute_gex_levels(
         "gamma_flip": float(gamma_flip),
         "vol_trigger": float(vol_trigger),
         "hvl": float(hvl),
+        "max_pain": float(max_pain),
         "call_wall": float(call_wall),
         "call_wall_low": float(call_wall_low * ratio),
         "call_wall_high": float(call_wall_high * ratio),

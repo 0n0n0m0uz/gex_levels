@@ -14,6 +14,7 @@ console = Console(force_terminal=True)
 # Import Submodules
 from gex_levels.config import DEFAULT_SYMBOLS, OUTPUT_DIR
 from gex_levels.gex.gex_compute import compute_gex_levels
+#from gex_levels.gex.gex_compute_0dte import ....
 from gex_levels.outputs.output_gex_file import write_gex_file
 from gex_levels.outputs.pinescript_output import print_pinescript_block
 
@@ -38,13 +39,8 @@ def main():
 Examples:
   python gex_daily.py                    # SPX + NDX (default)
   python gex_daily.py SPX                # real $SPX index chain, direct from Schwab
-  python gex_daily.py NDX                # real $NDX index chain, direct from Schwab
-  python gex_daily.py VIX                # real $VIX index chain (approx: spot VIX as BS input)
-  python gex_daily.py SPY                # real SPY ETF chain — not converted to SPX
-  python gex_daily.py QQQ                # real QQQ ETF chain — not converted to NDX
   python gex_daily.py AAPL               # any stock, own price space
-  python gex_daily.py IWM --index ^RUT   # manual ratio conversion for tickers with no
-                                         # native Schwab index chain
+  python gex_daily.py IWM --index ^RUT   # manual ratio conversion for tickers with 
   python gex_daily.py SPX NDX VIX SPY    # multiple symbols in one run
   python gex_daily.py SPX --days 90      # 90-day window only
   python gex_daily.py SPX --days 30,90   # both windows in one run
@@ -73,9 +69,9 @@ Examples:
     )
     parser.add_argument(
         "--days",
-        metavar="{30,90,30,90}",
+        metavar="{0,30,90,30,90}",
         default="30",
-        help="DTE window(s) to compute: 30, 90, or 30,90 for both. Defaults to 30.",
+        help="DTE window(s) to compute: 0DTE, 30, 90, or 30,90 for both. Defaults to 30.",
     )
 
     args = parser.parse_args()
@@ -92,9 +88,9 @@ Examples:
         windows = sorted({int(d.strip()) for d in args.days.split(",")}, reverse=True)
 
     except ValueError:
-        parser.error(f"--days must be 30, 90, or 30,90 (got: {args.days!r})")
-    if not windows or any(w not in (30, 90) for w in windows):
-        parser.error(f"--days must be 30, 90, or 30,90 (got: {args.days!r})")
+        parser.error(f"--days must be 0, 30, 90, or 30,90 (got: {args.days!r})")
+    if not windows or any(w not in (0, 30, 90) for w in windows):
+        parser.error(f"--days must be 0, 30, 90, or 30,90 (got: {args.days!r})")
 
     if len(symbols) > 1 and (args.index or args.vix):
         print("Warning: --index and --vix are ignored when multiple symbols are given.")
@@ -114,6 +110,16 @@ Examples:
                 console.print(
                     f"[bold italic grey42]...Computing {w}-day window for {symbol}...[/bold italic grey42]"
                 )
+                if w == 0:
+                    # Skip 0, or handle it with custom logic if needed
+                    # data[w] = compute_gex_levels(
+                    #     symbol,
+                    #     max_dte=w,
+                    #     index_ticker_override=args.index,
+                    #     vix_ticker_override=args.vix
+
+                    continue
+
                 data[w] = compute_gex_levels(
                     symbol,
                     max_dte=w,
@@ -160,8 +166,6 @@ Examples:
     for key, value in hub.variables.items():
         print(f"{key}: {value}")
     print("---------------------------------\n")
-
-
 
 
 if __name__ == "__main__":

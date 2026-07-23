@@ -37,6 +37,7 @@ def _print_dte_section(data, suffix, levels):
     gf = data["gamma_flip"]
     vt = data["vol_trigger"]
     hvl = data["hvl"]
+    mp = data["max_pain"]
     nd = data["net_dex"]
     dr = data["dex_regime"]
     cr = data["cpr_raw"]
@@ -51,6 +52,7 @@ def _print_dte_section(data, suffix, levels):
     print(f"var float GAMMA_FLIP{s}  = {gf:.2f}")
     print(f"var float VOL_TRIGGER{s} = {vt:.2f}")
     print(f"var float HVL{s}         = {hvl:.2f}")
+    print(f"var float MAX_PAIN{s}    = {mp:.2f}")
     print(f"var float CALL_WALL{s}   = {cw:.2f}")
     print(f"var float CW_LOW{s}      = {l['cw_low']:.2f}")
     print(f"var float CW_HIGH{s}     = {l['cw_high']:.2f}")

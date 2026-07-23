@@ -65,6 +65,32 @@ def compute_cpr(calls, puts):
     return cpr_raw, cpr_notl
 
 
+def compute_max_pain(calls, puts):
+    """Compute max pain — the strike at which total option writer payout
+    (intrinsic value * OI, summed across calls and puts) is minimized.
+
+    Candidates are every strike present in either chain. For each candidate
+    settlement price, calls with strike below it pay (S - K) * OI and puts
+    with strike above it pay (K - S) * OI; the strike minimizing that total
+    is max pain.
+    """
+    if len(calls) == 0 and len(puts) == 0:
+        return 0.0
+
+    call_K = calls[:, 0] if len(calls) else np.empty(0)
+    call_OI = calls[:, 1] if len(calls) else np.empty(0)
+    put_K = puts[:, 0] if len(puts) else np.empty(0)
+    put_OI = puts[:, 1] if len(puts) else np.empty(0)
+
+    candidates = np.unique(np.concatenate([call_K, put_K]))
+    S = candidates[:, np.newaxis]
+
+    call_pain = np.sum(np.maximum(S - call_K[np.newaxis, :], 0) * call_OI[np.newaxis, :], axis=1)
+    put_pain = np.sum(np.maximum(put_K[np.newaxis, :] - S, 0) * put_OI[np.newaxis, :], axis=1)
+
+    return float(candidates[np.argmin(call_pain + put_pain)])
+
+
 def compute_hvl(call_gex, put_gex):
     """Compute High Volatility Level — notional-weighted center of mass
     of the absolute GEX profile.
