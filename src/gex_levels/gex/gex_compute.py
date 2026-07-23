@@ -238,7 +238,7 @@ def compute_gex_levels(
     dex_color = "red" if net_dex < 0 else "green"
 
     # --- Call/Put ratios ---
-    cpr_raw, cpr_notl = compute_cpr(calls, puts)
+    cpr_raw, cpr_notional = compute_cpr(calls, puts)
 
 ##########################################################################
 
@@ -248,7 +248,7 @@ def compute_gex_levels(
         f"({dex_regime})"
     )
     console.print(f"  {'CPR Raw':<22} {cpr_raw:.3f}")
-    console.print(f"  {'CPR Notional':<22} {cpr_notl:.3f}")
+    console.print(f"  {'CPR Notional':<22} {cpr_notional:.3f}")
 ###########################################################################
 
     # --- HVL and Vol Trigger (ticker price space) ---
@@ -431,7 +431,7 @@ def compute_gex_levels(
         "net_dex": float(net_dex),
         "dex_regime": dex_regime,
         "cpr_raw": float(cpr_raw),
-        "cpr_notl": float(cpr_notl),
+        "cpr_notional": float(cpr_notional),
         "etf_gamma_flip": etf_gamma_flip,
         "etf_call_wall": etf_call_wall,
         "etf_put_wall": etf_put_wall,

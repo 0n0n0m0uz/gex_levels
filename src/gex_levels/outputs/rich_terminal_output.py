@@ -63,7 +63,7 @@ def print_gex_summary(data):
         f"  CPR Raw          {data['cpr_raw']:.4f}"
     )
     console.print(
-        f"  CPR Notional     {data['cpr_notl']:.4f}"
+        f"  CPR Notional     {data['cpr_notional']:.4f}"
     )
 
     console.print(Rule("[bold blue]Volatility[/bold blue]"))

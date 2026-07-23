@@ -61,8 +61,8 @@ def compute_cpr(calls, puts):
     call_notl = float(np.sum(calls[:, 1] * calls[:, 0]))
     put_notl = float(np.sum(puts[:, 1] * puts[:, 0]))
     cpr_raw = call_oi / put_oi if put_oi > 0 else 1.0
-    cpr_notl = call_notl / put_notl if put_notl > 0 else 1.0
-    return cpr_raw, cpr_notl
+    cpr_notional = call_notl / put_notl if put_notl > 0 else 1.0
+    return cpr_raw, cpr_notional
 
 
 def compute_max_pain(calls, puts):
