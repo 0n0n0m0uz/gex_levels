@@ -25,7 +25,7 @@ Sophisticated investors will weight GEX by DTE because weighting by DTE
 normalizes time, transforming GEX from a simple structural calculation into an accurate gauge of **real-world market-maker hedging pressure**.
 
 The Tau is used to weight which expirations contribute more to the gex calculation.
-Because gamma approaches large numbers as expiration approaches those near term expirys can have an outsided influence on a longer terms gex calulation.
+Because gamma approaches large numbers as expiration approaches those near term expirations can have an outsized influence on a longer terms gex calulation.
 The Tau of 7 will artificially lower the influence of these options compared to later ones.
 
 Obviously for a longer term gex horizon of 90 days the tau can be larger to place more weight on the expirations further into the future
@@ -67,7 +67,7 @@ Net Gex is less helpful for longer periods, but it probably makes sense to compa
 
 # Historical Option Chain Data
 
-Where can i get historical option data?
+Where can I get historical option data?
 
 ## Volatility Risk Premium
 

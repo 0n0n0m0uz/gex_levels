@@ -6,7 +6,7 @@ import pandas as pd
 
 from gex_levels.config import BASE_DIR
 
-from gex_levels.auth.api_auth_schwab import _schwab_get
+from gex_levels.auth.api_auth_schwab import schwab_get
 
 sys.path.append(str(BASE_DIR))
 
@@ -37,7 +37,7 @@ def fetch_schwab_chain(schwab_symbol, today_str, max_dte):
 
     to_date = (datetime.now() + timedelta(days=max_dte)).strftime("%Y-%m-%d")
 
-    enum_data = _schwab_get(
+    enum_data = schwab_get(
         "https://api.schwabapi.com/marketdata/v1/chains",
         {
             "symbol": schwab_symbol,
@@ -75,7 +75,7 @@ def fetch_schwab_chain(schwab_symbol, today_str, max_dte):
 
     by_exp = {}
     for exp_date in exp_dates:
-        exp_data = _schwab_get(
+        exp_data = schwab_get(
             "https://api.schwabapi.com/marketdata/v1/chains",
             {
                 "symbol": schwab_symbol,
@@ -96,7 +96,7 @@ def fetch_schwab_chain(schwab_symbol, today_str, max_dte):
 
 def fetch_schwab_quote_close(symbol):
     """Previous close for an index symbol (e.g. $VIX, $VXN) via Schwab quotes."""
-    data = _schwab_get(
+    data = schwab_get(
         "https://api.schwabapi.com/marketdata/v1/quotes", {"symbols": symbol}
     )
     quote = (data.get(symbol) or {}).get("quote") or {}

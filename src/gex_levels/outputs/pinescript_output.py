@@ -2,7 +2,7 @@ import os
 import sys
 
 
-from gex_levels.gex.gex_calculations import _derive_profile_levels
+from gex_levels.gex.gex_calculations import derive_profile_levels
 
 
 def print_pinescript_block(data30=None, data90=None):
@@ -23,9 +23,9 @@ def print_pinescript_block(data30=None, data90=None):
     print(f"var float UNDERLYING  = {underlying:.2f}")
     print()
     if data30:
-        _print_dte_section(data30, "_30", _derive_profile_levels(data30))
+        _print_dte_section(data30, "_30", derive_profile_levels(data30))
     if data90:
-        _print_dte_section(data90, "_90", _derive_profile_levels(data90))
+        _print_dte_section(data90, "_90", derive_profile_levels(data90))
     print(f"// {sep}")
     print()
 

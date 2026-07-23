@@ -331,7 +331,7 @@ def apply_hysteresis(gex_map, new_wall, prev_wall):
         return prev_wall
 
 
-def _derive_profile_levels(data):
+def derive_profile_levels(data):
     """Extract key levels, net GEX string, and top 5 nodes from a data dict.
 
     Wall zones (cw_low/cw_high, pw_low/pw_high) now come directly from

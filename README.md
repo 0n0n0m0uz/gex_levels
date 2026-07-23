@@ -15,10 +15,10 @@ You can also specify the project root using this command:
 
 The Schwab API Access tokens are only valid for 7 days after which you must re-authenticate.
 
-The below command will initiate the manual process which involves signing in via webbrowser and a 2-factor code to email/phone
+The below command will initiate the manual process which involves signing in via web-browser and a 2-factor code to email/phone
 > uv run check_schwab_token
 
-The script automatically handles the 30 minute refresh tokens and will keep updating the refresh tokens and storing them for the full 7-day access token lifetime.
+The script automatically handles the 30-minute refresh tokens and will keep updating the refresh tokens and storing them for the full 7-day access token lifetime.
 
 --- 
 Computes gamma exposure per strike using Black-Scholes (or Schwab's own

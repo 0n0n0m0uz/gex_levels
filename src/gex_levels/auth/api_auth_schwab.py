@@ -46,7 +46,7 @@ def _schwab_refresh_token(token_data):
     return new_token["access_token"]
 
 
-def _schwab_get(url, params):
+def schwab_get(url, params):
     """GET against a Schwab endpoint, refreshing the token on 401."""
     import requests
 
