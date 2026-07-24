@@ -57,7 +57,9 @@ The lowest qualifying call-side strike with meaningful positive GEX at or above 
 This marks the level where call dealer hedging (buy pressure) kicks in  meaningfully on the upside.  Often sits between Gamma Flip and Call Wall.
 
 
+# Hysteresis
 
+Hysteresis is the dependence of a system's state on its past history, meaning the output lags behind the input.
 
 
 # Net Gex
