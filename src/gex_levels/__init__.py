@@ -29,3 +29,4 @@
 # helper functions that start w underscore should not be placed in init
 
 # You can add package level variables that all .py files in that directory will use
+# an __all__ variable that defines a list of imports that will respond to import *
