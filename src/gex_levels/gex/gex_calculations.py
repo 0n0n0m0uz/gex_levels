@@ -310,6 +310,22 @@ def read_previous_etf_walls(symbol, out_symbol, tenor):
         return 0.0, 0.0
 
 
+def convert_to_index_space(ratio, gamma_flip, call_wall, put_wall, hvl, vol_trigger, max_pain, net_dex):
+    """Scale ticker-space levels into index/futures price space (e.g. SPY -> SPX)
+    by the live index/ETF ratio from get_index_ratio(). Returns the same
+    7 values, in order, each multiplied by `ratio`.
+    """
+    return (
+        gamma_flip * ratio,
+        call_wall * ratio,
+        put_wall * ratio,
+        hvl * ratio,
+        vol_trigger * ratio,
+        max_pain * ratio,
+        net_dex * ratio,
+    )
+
+
 def apply_hysteresis(gex_map, new_wall, prev_wall):
     """Only move the wall if new candidate is >10% stronger than previous.
 

@@ -3,8 +3,6 @@ import sys
 from datetime import datetime, timezone
 from typing import Optional, Union
 
-import yfinance as yf
-
 from rich.console import Console
 from rich.rule import Rule
 
@@ -15,10 +13,13 @@ from gex_levels.config import (
     MAX_DTE,
     DTE_TAU_30,
     DTE_TAU_90,
-    SCHWAB_VOL_SYMBOL,
 )
-from gex_levels.getData.fetch_spot import get_spot_and_chain, get_risk_free_rate
-from gex_levels.getData.fetch_schwab_data import fetch_schwab_quote_close
+from gex_levels.getData.fetch_spot import (
+    get_spot_and_chain,
+    get_risk_free_rate,
+    get_vol_close,
+    get_index_ratio,
+)
 from gex_levels.getData.fetch_yfinance_data import collect_chain
 from gex_levels.gex.gex_calculations import (
     compute_per_strike_gex,
@@ -32,6 +33,7 @@ from gex_levels.gex.gex_calculations import (
     find_gamma_flip,
     read_previous_etf_walls,
     apply_hysteresis,
+    convert_to_index_space,
 )
 from debug.debug_hub import hub
 
@@ -247,25 +249,15 @@ def compute_gex_levels(
             None if no_index_conversion else index_ticker_override
         )
         if index_ticker is not None and isinstance(index_ticker, (str, tuple)):
-            try:
-                idx = yf.Ticker(index_ticker)
-                index_price = idx.fast_info["lastPrice"]
-                ratio = index_price / spot
-                print(f"  Index {index_ticker}: {index_price:.2f} (ratio {ratio:.2f}x)")
-                gamma_flip *= ratio
-                call_wall *= ratio
-                put_wall *= ratio
-                hvl *= ratio
-                vol_trigger *= ratio
-                max_pain *= ratio
-                net_dex *= ratio
-                spot = index_price
-            except Exception as e:
-                console.print(
-                    f"[bold italic grey42]Warning: could not fetch {index_ticker}, levels stay in {symbol} price space: {e}[/bold italic grey42]"
+            fetched_ratio, index_price = get_index_ratio(index_ticker, spot, symbol)
+            if fetched_ratio is not None:
+                ratio = fetched_ratio
+                gamma_flip, call_wall, put_wall, hvl, vol_trigger, max_pain, net_dex = (
+                    convert_to_index_space(
+                        ratio, gamma_flip, call_wall, put_wall, hvl, vol_trigger, max_pain, net_dex
+                    )
                 )
-
-
+                spot = index_price
         else:
             console.print(
                 f"[bold italic grey42]No index conversion requested — levels stay in {symbol} price space[/bold italic grey42]"
@@ -301,24 +293,7 @@ def compute_gex_levels(
 
 
     # --- Fetch volatility index close (secondary reference field, not used in the math) ---
-    vol_close = 0.0
-    if is_direct_index:
-        vol_ticker = SCHWAB_VOL_SYMBOL.get(symbol, "")
-        if vol_ticker:
-            try:
-                vol_close = fetch_schwab_quote_close(vol_ticker)
-                print(f"  {vol_ticker} previous close: {vol_close:.2f}")
-            except Exception as e:
-                print(f"  Warning: could not fetch {vol_ticker}: {e}")
-    else:
-        vol_ticker = vix_ticker_override or ""
-        if vol_ticker:
-            try:
-                vt = yf.Ticker(vol_ticker)
-                vol_close = vt.fast_info["previousClose"]
-                print(f"  {vol_ticker} previous close: {vol_close:.2f}")
-            except Exception as e:
-                print(f"  Warning: could not fetch {vol_ticker}: {e}")
+    vol_close, vol_ticker = get_vol_close(symbol, is_direct_index, vix_ticker_override)
 
     return {
         "symbol": out_symbol,

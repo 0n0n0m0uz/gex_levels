@@ -9,11 +9,12 @@ from rich.console import Console
 from gex_levels.config import (
     RISK_FREE_RATE,
     SCHWAB_DIRECT_INDEX,
+    SCHWAB_VOL_SYMBOL,
     _CHAIN_CACHE,
     _SCHWAB_SPOT_CACHE,
     _SCHWAB_FETCH_FAILED,
 )
-from gex_levels.getData.fetch_schwab_data import fetch_schwab_chain
+from gex_levels.getData.fetch_schwab_data import fetch_schwab_chain, fetch_schwab_quote_close
 
 console = Console(force_terminal=True)
 
@@ -150,3 +151,48 @@ def get_risk_free_rate():
             f"  {'Risk-Free Rate':<22}{RISK_FREE_RATE:.4f} (fallback — SOFR unavailable)"
         )
         return RISK_FREE_RATE
+
+
+def get_vol_close(symbol, is_direct_index, vix_ticker_override=None):
+    """Fetch volatility index close (secondary reference field, not used in
+    the math) — Schwab quote for direct-index symbols (SPX/NDX/VIX), or an
+    explicit yfinance override ticker for anything else.
+
+    Returns (vol_close, vol_ticker).
+    """
+    if is_direct_index:
+        vol_ticker = SCHWAB_VOL_SYMBOL.get(symbol, "")
+    else:
+        vol_ticker = vix_ticker_override or ""
+
+    if not vol_ticker:
+        return 0.0, ""
+
+    try:
+        if is_direct_index:
+            vol_close = fetch_schwab_quote_close(vol_ticker)
+        else:
+            vol_close = yf.Ticker(vol_ticker).fast_info["previousClose"]
+        print(f"  {vol_ticker} previous close: {vol_close:.2f}")
+        return vol_close, vol_ticker
+    except Exception as e:
+        print(f"  Warning: could not fetch {vol_ticker}: {e}")
+        return 0.0, vol_ticker
+
+
+def get_index_ratio(index_ticker, spot, symbol):
+    """Fetch the live index/ETF ratio for --index conversion (e.g. SPY -> ^GSPC).
+
+    Returns (ratio, index_price), or (None, None) if the fetch failed.
+    """
+    try:
+        idx = yf.Ticker(index_ticker)
+        index_price = idx.fast_info["lastPrice"]
+        ratio = index_price / spot
+        print(f"  Index {index_ticker}: {index_price:.2f} (ratio {ratio:.2f}x)")
+        return ratio, index_price
+    except Exception as e:
+        console.print(
+            f"[bold italic grey42]Warning: could not fetch {index_ticker}, levels stay in {symbol} price space: {e}[/bold italic grey42]"
+        )
+        return None, None
