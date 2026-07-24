@@ -26,3 +26,4 @@
 # It flattens the modules namespace and places all objects in all subpackages at the same level
 
 # This means that objects / functions in different modules cant have identical names
+# helper functions that start w underscore should not be placed in init
