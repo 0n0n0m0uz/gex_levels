@@ -61,6 +61,7 @@ This marks the level where call dealer hedging (buy pressure) kicks in  meaningf
 
 Hysteresis is the dependence of a system's state on its past history, meaning the output lags behind the input.
 
+The Hysteresis Effect: The actual mechanical pressure exerted on the market at a specific index level (e.g., S&P 500 at 6,000) depends heavily on the path the market took to get there. If the market drops sharply into a negative GEX pocket, dealers are forced into aggressive short-gamma selling. However, if the market rallies back up to that exact same 6,000 level, the dealer book's delta exposure, option decay (theta), and changing open interest mean the structural feedback loop reacts differently than it did on the way down.
 
 # Net Gex
 
