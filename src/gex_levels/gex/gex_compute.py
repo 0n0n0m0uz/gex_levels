@@ -107,7 +107,8 @@ def compute_gex_levels(
     out_symbol = symbol
 
     # Hysteresis on the wall strike itself
-    prev_cw, prev_pw = read_previous_etf_walls(symbol, out_symbol)
+    tenor = "30" if max_dte <= 30 else "90"
+    prev_cw, prev_pw = read_previous_etf_walls(symbol, out_symbol, tenor)
     call_wall = apply_hysteresis(call_gex, raw_call_wall, prev_cw)
     put_wall = apply_hysteresis(put_gex, raw_put_wall, prev_pw)
 

@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 
@@ -288,26 +289,25 @@ def find_gamma_flip(
     return float(spot)
 
 
-def read_previous_etf_walls(symbol, out_symbol):
-    """Read previous ETF-space walls from existing file for hysteresis.
+def read_previous_etf_walls(symbol, out_symbol, tenor):
+    """Read previous ETF-space walls from the existing JSON output for hysteresis.
 
-    These are the raw ETF strikes before index conversion, stored as
-    ETF_CALL_WALL / ETF_PUT_WALL in the output file.
+    These are the raw ETF strikes before index conversion, stored per-tenor
+    as etf_call_wall / etf_put_wall (tenor is "30" or "90" — the walls are
+    computed separately per window, so last run's value for the *other*
+    window isn't a valid hysteresis baseline for this one).
     """
-    path = os.path.join(OUTPUT_DIR, f"gex_{out_symbol}.txt")
-    prev = {"ETF_CALL_WALL": 0.0, "ETF_PUT_WALL": 0.0}
+    path = os.path.join(OUTPUT_DIR, f"gex_{out_symbol}.json")
     try:
-        with open(path, "r") as f:
-            for line in f:
-                line = line.strip()
-                if "=" not in line:
-                    continue
-                key, val = line.split("=", 1)
-                if key in prev:
-                    prev[key] = float(val)
-    except (FileNotFoundError, ValueError):
-        pass
-    return prev["ETF_CALL_WALL"], prev["ETF_PUT_WALL"]
+        with open(path, "r", encoding="utf-8") as f:
+            prev_data = json.load(f)
+        section = prev_data.get("tenors", {}).get(str(tenor), {})
+        return (
+            float(section.get("etf_call_wall", 0.0)),
+            float(section.get("etf_put_wall", 0.0)),
+        )
+    except (FileNotFoundError, ValueError, json.JSONDecodeError):
+        return 0.0, 0.0
 
 
 def apply_hysteresis(gex_map, new_wall, prev_wall):
