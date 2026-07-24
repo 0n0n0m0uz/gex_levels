@@ -5,34 +5,16 @@ from datetime import datetime
 import numpy as np
 
 
-from gex_levels.config import _CHAIN_CACHE, DTE_TAU_30, DTE_TAU_90
+from gex_levels.config import DTE_TAU_30, DTE_TAU_90
 
 
-def _download_options(ticker, symbol, today_str):
-    """yfinance chain download, used only for the fallback path (Schwab-sourced
-    chains are pre-populated into _CHAIN_CACHE directly by compute_gex_levels)."""
-    key = (symbol, today_str)
-    if key in _CHAIN_CACHE:
-        return _CHAIN_CACHE[key]
-
-    raw = []
-    for exp_str in ticker.options:
-        try:
-            chain = ticker.option_chain(exp_str)
-            raw.append((exp_str, chain.calls, chain.puts))
-        except Exception as e:
-            print(f"    Skip {exp_str}: {e}")
-
-    _CHAIN_CACHE[key] = raw
-    return raw
-
-
-def collect_chain(ticker, spot, max_dte, symbol=None, today_str=None, dte_tau=None):
+def collect_chain(raw, spot, max_dte, dte_tau=None):
     """
     This is the second step where business logic filtering is applied to the data and the raw native format is converted
     to separate numpy arrays for more efficient transformation and calculation of the Black Scholes formulas
 
-    Build DTE-weighted options arrays from cached chain data.
+    Build DTE-weighted options arrays from already-resolved chain data (see
+    getData.fetch_spot.get_spot_and_chain for how `raw` is obtained).
 
     Returns (calls, puts, exp_count) where each array is Nx4:
     [strike, weighted_OI, T_years, implied_vol]
@@ -43,15 +25,9 @@ def collect_chain(ticker, spot, max_dte, symbol=None, today_str=None, dte_tau=No
     - T floored at 0.5/365 so gamma doesn't blow up for same-day expiry
     - Chain downloaded once and reused for both 30d and 90d passes
     """
-    if today_str is None:
-        today_str = datetime.now().strftime("%Y-%m-%d")
-    if symbol is None:
-        symbol = ticker.ticker if hasattr(ticker, "ticker") else "UNKNOWN"
-
     if dte_tau is None:
         dte_tau = DTE_TAU_30 if max_dte <= 30 else DTE_TAU_90
 
-    raw = _download_options(ticker, symbol, today_str)
     now = datetime.now()
     calls_list, puts_list = [], []
     exp_count = 0

@@ -15,17 +15,10 @@ from gex_levels.config import (
     MAX_DTE,
     DTE_TAU_30,
     DTE_TAU_90,
-    RISK_FREE_RATE,
-    SCHWAB_DIRECT_INDEX,
     SCHWAB_VOL_SYMBOL,
-    _CHAIN_CACHE,
-    _SCHWAB_SPOT_CACHE,
-    _SCHWAB_FETCH_FAILED,
 )
-from gex_levels.getData.fetch_schwab_data import (
-    fetch_schwab_chain,
-    fetch_schwab_quote_close,
-)
+from gex_levels.getData.fetch_spot import get_spot_and_chain, get_risk_free_rate
+from gex_levels.getData.fetch_schwab_data import fetch_schwab_quote_close
 from gex_levels.getData.fetch_yfinance_data import collect_chain
 from gex_levels.gex.gex_calculations import (
     compute_per_strike_gex,
@@ -66,77 +59,9 @@ def compute_gex_levels(
     ####### Basic Setup of Symbol along with spot price #######################################################################################################################################
     symbol = symbol.upper()
 
-
     today_str = datetime.now().strftime("%Y-%m-%d")
 
-
-    is_direct_index = symbol in SCHWAB_DIRECT_INDEX # T/F would be T if nothing passed to command line, and F is regular stock is passed
-
-    schwab_symbol = SCHWAB_DIRECT_INDEX.get(symbol, symbol)
-    cache_key = (symbol, today_str)
-
-    ticker = None
-    spot = None
-
-    if cache_key in _CHAIN_CACHE and cache_key in _SCHWAB_SPOT_CACHE:
-        # Reuse the same chain+spot snapshot across the 30d/90d passes —
-        # avoids a second Schwab call and keeps both windows consistent.
-        spot = _SCHWAB_SPOT_CACHE[cache_key]
-        print(f"Reusing cached {schwab_symbol} chain — spot: {spot:.2f}")
-    elif cache_key in _SCHWAB_FETCH_FAILED:
-        print(f"  Schwab fetch already failed this run — using {symbol} via yfinance")
-    else:
-        try:
-            #print(f"  Fetching {schwab_symbol} from Schwab...") ## Next Line that Prints is 130 below
-
-            console.print()
-            console.print(
-                f"[bold italic grey42]Fetching {schwab_symbol} from Schwab[/bold italic grey42]"
-            )
-
-            spot, raw = fetch_schwab_chain(schwab_symbol, today_str, max_dte)
-            if raw is None:
-                raise ValueError("Schwab FAILED TO RETURN an option chain")
-
-            _CHAIN_CACHE[cache_key] = raw
-            _SCHWAB_SPOT_CACHE[cache_key] = spot
-
-        except Exception as e:
-            if is_direct_index:
-                # No ETF proxy exists for a pure index under this design —
-                # falling back would mean silently substituting a different
-                # symbol, which is exactly what we're trying not to do.
-                raise ValueError(
-                    f"Could not fetch {schwab_symbol} from Schwab ({e}) — "
-                    f"no fallback available for {symbol} (it has no ETF proxy)"
-                )
-            print(
-                f"  Schwab fetch failed ({e}) — falling back to yfinance for {symbol}"
-            )
-            _SCHWAB_FETCH_FAILED.add(cache_key)
-
-    if spot is None:
-        # yfinance fallback — only reachable for non-index symbols (SPY, QQQ, stocks)
-        print(f"  Fetching {symbol} price + options chain via yfinance...")
-        ticker = yf.Ticker(symbol)
-
-        # Fresh spot via 1m bar — fast_info["lastPrice"] lags during the session
-        try:
-            hist = ticker.history(period="1d", interval="1m")
-            if not hist.empty:
-                spot = float(hist["Close"].iloc[-1])
-        except Exception:
-            pass
-        if not spot or spot <= 0:
-            try:
-                spot = ticker.fast_info["lastPrice"]
-            except Exception:
-                spot = ticker.info.get("regularMarketPrice") or ticker.info.get(
-                    "previousClose"
-                )
-        if not spot or spot <= 0:
-            raise ValueError(f"Could not get price for {symbol}")
-        #print(f"  Spot: ${spot:.2f}")
+    spot, raw, is_direct_index = get_spot_and_chain(symbol, today_str, max_dte)
 ##################################################################
     console.print(Rule("[bold green]Market Data[/bold green]"))
     console.print()
@@ -144,30 +69,12 @@ def compute_gex_levels(
 #####################################################################
 
     #### Fetch live risk-free rate from SOFR (Fed FRED API)  ########################################################################################
-    try:
-        import requests
-
-        r = requests.get(
-            "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SOFR", timeout=10
-        )
-        sofr = float(r.text.strip().split("\n")[-1].split(",")[1]) / 100
-        risk_free_rate = sofr
-        console.print(f"  {'Risk-Free Rate':<22} {risk_free_rate:.2%} (SOFR)")
-        #print(f"  Risk-free rate: {risk_free_rate:.2%} (SOFR)")
-    except Exception:
-        risk_free_rate = RISK_FREE_RATE
-        console.print(f"  {'Risk-Free Rate':<22}{risk_free_rate:.4f} (fallback — SOFR unavailable)")
+    risk_free_rate = get_risk_free_rate()
 
     ####  Raw Data is Downloaded, filtered according to Business Logic and then separated into Numpy Arrays for more efficient processing ####################################################################################################################################
     tau = DTE_TAU_30 if max_dte <= 30 else DTE_TAU_90
 
-    # ticker is None when the Schwab path already succeeded — collect_chain still
-    # works because _download_options() checks _CHAIN_CACHE (already populated by
-    # fetch_schwab_chain above) before ever touching ticker. yfinance's Ticker.options
-    # is only reached on a cache miss, i.e. when Schwab failed and ticker is real.
-    calls, puts, exp_count = collect_chain(
-        ticker, spot, max_dte, symbol, today_str, dte_tau=tau
-    )
+    calls, puts, exp_count = collect_chain(raw, spot, max_dte, dte_tau=tau)
 ##########################################################################
     console.print(f"  {'Expirations':<22} {exp_count}")
     console.print(f"  {'Calls':<22} {len(calls):,}")
