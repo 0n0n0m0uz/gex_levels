@@ -17,6 +17,9 @@ a sandbox w more sprawl for a category of projects
 uv doesnt require activation of env before running script either andis locked down to exact
 same packages for anyone that runs it
 
+## uv tool
+used to install globally scoped tools to manage and build locally scoped projects 
+
 
 you should think about your intended audience before younbegin the project becauae there are
 different approaches to packagind depending on who and how it will be used.
@@ -33,3 +36,12 @@ wheels contain non python artifacts and are precompiled binaries. you can even u
 python packages and thats what pip does.
 
 source allows user to compile build it whereas wheel is already compiled
+
+## pip
+
+pip is the package installer for Python. You can use pip to install packages 
+from the Python Package Index and other indexes.
+
+## pipx
+
+used for installing python scripts executed from the command line (not just a dependency)
