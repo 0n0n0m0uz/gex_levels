@@ -2,22 +2,21 @@
 gex_daily.py - Daily GEX level calculator and shared library
 """
 
+# Import Submodules
+from gex_levels.config import DEFAULT_SYMBOLS, OUTPUT_DIR
+from gex_levels.gex.gex_compute import compute_gex_levels
+# from gex_levels.gex.gex_compute_0dte import ....
+from gex_levels.outputs.output_gex_file import write_gex_file
+from gex_levels.outputs.pinescript_output import print_pinescript_block
+
 ## Standard Library Packages
 import argparse
 
 # External Modules
 from rich.console import Console
-from rich.rule import Rule
+#from rich.rule import Rule
 
 console = Console(force_terminal=True)
-
-# Import Submodules
-from gex_levels.config import DEFAULT_SYMBOLS, OUTPUT_DIR
-from gex_levels.gex.gex_compute import compute_gex_levels
-#from gex_levels.gex.gex_compute_0dte import ....
-from gex_levels.outputs.output_gex_file import write_gex_file
-from gex_levels.outputs.pinescript_output import print_pinescript_block
-
 
 
 from debug.debug_hub import hub
