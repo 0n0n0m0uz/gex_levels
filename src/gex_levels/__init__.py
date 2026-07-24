@@ -27,3 +27,5 @@
 
 # This means that objects / functions in different modules cant have identical names
 # helper functions that start w underscore should not be placed in init
+
+# You can add package level variables that all .py files in that directory will use
