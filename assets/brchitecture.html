@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gex_levels · Architecture</title>
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --panel2:#21262d; --border:#30363d;
+  --text:#e6edf3; --muted:#8b949e; --accent:#7c3aed; --accent2:#2f81f7;
+  --edge:#484f58; --edge-cycle:#f85149; --edge-amb:#d29922;
+  --k-function:#3fb950; --k-method:#2f81f7; --k-constructor:#f85149;
+  --k-property:#db61a2; --k-staticmethod:#39c5cf; --k-classmethod:#a371f7;
+  --k-async:#a371f7;
+}
+:root[data-theme="light"]{
+  --bg:#ffffff; --panel:#f6f8fa; --panel2:#eaeef2; --border:#d0d7de;
+  --text:#1f2328; --muted:#636c76; --edge:#afb8c1;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;overflow:hidden}
+#app{display:flex;flex-direction:column;height:100vh}
+header{display:flex;align-items:center;gap:14px;padding:10px 16px;background:var(--panel);
+  border-bottom:1px solid var(--border);flex-wrap:wrap}
+header h1{font-size:15px;margin:0;font-weight:600;display:flex;align-items:center;gap:8px}
+.badge{font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:20px;padding:2px 9px}
+.spacer{flex:1}
+.control{display:flex;align-items:center;gap:6px}
+input,select,button{font:inherit;font-size:13px;color:var(--text);background:var(--panel2);
+  border:1px solid var(--border);border-radius:7px;padding:6px 10px;outline:none}
+button{cursor:pointer;transition:.15s}
+button:hover{border-color:var(--accent2)}
+button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.seg{display:flex;border:1px solid var(--border);border-radius:7px;overflow:hidden}
+.seg button{border:none;border-radius:0;background:var(--panel2)}
+.seg button.on{background:var(--accent);color:#fff}
+#main{flex:1;position:relative;overflow:hidden}
+#graph{width:100%;height:100%;display:block;cursor:grab}
+#graph.grabbing{cursor:grabbing}
+.node circle{stroke:var(--bg);stroke-width:1.5px;cursor:pointer;transition:opacity .2s}
+.node text{font-size:10px;fill:var(--text);pointer-events:none;paint-order:stroke;
+  stroke:var(--bg);stroke-width:3px;stroke-linejoin:round}
+.link{fill:none;stroke:var(--edge);stroke-width:1.2px;opacity:.55}
+.link.cycle{stroke:var(--edge-cycle);stroke-dasharray:none;opacity:.9}
+.link.ambiguous{stroke:var(--edge-amb);stroke-dasharray:4 3}
+.dim{opacity:.08!important}
+.hl circle{stroke:var(--accent2)!important;stroke-width:3px!important}
+.hl-edge{stroke:var(--accent2)!important;opacity:1!important;stroke-width:2px!important}
+#inspector{position:absolute;top:12px;right:12px;width:320px;max-height:calc(100% - 24px);
+  background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:0;
+  display:none;flex-direction:column;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+#inspector.show{display:flex}
+#inspector .ihead{padding:14px 16px;border-bottom:1px solid var(--border);background:var(--panel2)}
+#inspector .ihead .kind{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+#inspector .ihead .name{font-size:16px;font-weight:600;word-break:break-all;margin-top:3px}
+#inspector .ibody{padding:12px 16px;overflow:auto;font-size:12.5px}
+#inspector .row{margin:6px 0;color:var(--muted)}
+#inspector .row b{color:var(--text);font-weight:600}
+#inspector code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:11.5px}
+#inspector .srcbtn{background:var(--panel2);border:1px solid var(--border);border-radius:4px;
+  color:var(--text);cursor:pointer;font-size:11px;padding:0 5px;line-height:1.5}
+#inspector .srcbtn:hover{border-color:var(--accent2)}
+#inspector .srclink{color:var(--accent2);text-decoration:none;font-size:11.5px;margin-left:4px}
+#inspector .srclink:hover{text-decoration:underline}
+#inspector ul{margin:4px 0 10px;padding-left:0;list-style:none}
+#inspector li{padding:3px 6px;border-radius:5px;cursor:pointer;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#inspector li:hover{background:var(--panel2)}
+#inspector .close{position:absolute;top:10px;right:12px;background:none;border:none;font-size:18px;color:var(--muted)}
+#legend{position:absolute;bottom:12px;left:12px;background:var(--panel);border:1px solid var(--border);
+  border-radius:10px;padding:10px 12px;font-size:11px;display:flex;flex-direction:column;gap:5px}
+#legend .li{display:flex;align-items:center;gap:7px;color:var(--muted)}
+#legend .dot{width:10px;height:10px;border-radius:50%}
+#legend .ln{width:16px;height:0;border-top:2px solid}
+#minimap{position:absolute;bottom:12px;right:12px;width:180px;height:120px;background:var(--panel);
+  border:1px solid var(--border);border-radius:8px;overflow:hidden;opacity:.9}
+#minimap rect.vp{fill:rgba(124,58,237,.18);stroke:var(--accent);stroke-width:1px}
+#palette{position:absolute;inset:0;background:rgba(0,0,0,.5);display:none;align-items:flex-start;
+  justify-content:center;padding-top:12vh;z-index:50}
+#palette.show{display:flex}
+#palette .box{width:min(560px,90vw);background:var(--panel);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+#palette input{width:100%;border:none;border-bottom:1px solid var(--border);border-radius:0;
+  background:var(--panel);padding:14px 16px;font-size:15px}
+#palette .results{max-height:50vh;overflow:auto}
+#palette .res{padding:9px 16px;cursor:pointer;display:flex;justify-content:space-between;gap:10px}
+#palette .res.sel,#palette .res:hover{background:var(--accent);color:#fff}
+#palette .res .sub{color:var(--muted);font-size:11px}
+#palette .res.sel .sub{color:#e6d9ff}
+#tourbar{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:var(--panel);
+  border:1px solid var(--border);border-radius:30px;padding:8px 12px;display:none;align-items:center;gap:10px;
+  box-shadow:0 8px 30px rgba(0,0,0,.4);font-size:12.5px;z-index:20}
+#tourbar.show{display:flex}
+#tourbar .step{color:var(--muted)}
+.hint{position:absolute;top:12px;left:12px;font-size:11px;color:var(--muted);background:var(--panel);
+  border:1px solid var(--border);border-radius:8px;padding:6px 10px;opacity:.85}
+@media(max-width:640px){#inspector{width:calc(100% - 24px)}#minimap{display:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>🗺️ gex_levels</h1>
+    <span class="badge" id="stat"></span>
+    <div class="spacer"></div>
+    <div class="control">
+      <div class="seg" id="levels" title="Abstraction level">
+        <button data-level="module">Module</button>
+        <button data-level="class">Class</button>
+        <button data-level="function" class="on">Function</button>
+      </div>
+    </div>
+    <div class="control"><input id="search" placeholder="Search…  (press /)" size="16"></div>
+    <div class="control"><select id="moduleFilter"><option value="">All modules</option></select></div>
+    <button id="tourBtn" title="Guided walkthrough">▶ Tour</button>
+    <button id="cyclesBtn" title="Highlight cycles">Cycles</button>
+    <button id="churnBtn" title="Git change-frequency heatmap" style="display:none">🔥 Churn</button>
+    <button id="fit" title="Fit to view">Fit</button>
+    <button id="exportBtn" title="Download SVG">⬇ SVG</button>
+    <button id="theme" title="Toggle theme">◐</button>
+  </header>
+  <div id="main">
+    <svg id="graph"></svg>
+    <div class="hint">Drag to pan · scroll to zoom · click a node · <b>Cmd/Ctrl-K</b> palette</div>
+    <div id="inspector">
+      <button class="close" id="iclose">×</button>
+      <div class="ihead"><div class="kind" id="ikind"></div><div class="name" id="iname"></div></div>
+      <div class="ibody" id="ibody"></div>
+    </div>
+    <div id="legend"></div>
+    <svg id="minimap"></svg>
+    <div id="tourbar">
+      <button id="tPrev">◀</button>
+      <span class="step" id="tStep"></span>
+      <button id="tNext">▶</button>
+      <button id="tEnd">✕</button>
+    </div>
+    <div id="palette">
+      <div class="box"><input id="pinput" placeholder="Jump to function, class or module…">
+        <div class="results" id="presults"></div></div>
+    </div>
+  </div>
+</div>
+<script id="graph-data" type="application/json">{"schema":"pyvisualizer/graph@1","generated_with":"py-code-visualizer","tool_version":"2.2.0","project":"gex_levels","repo":{"url":"https://github.com/0n0n0m0uz/gex_levels","link_ref":"HEAD"},"stats":{"nodes":77,"edges":50,"cycles":0,"ambiguous_edges":2},"nodes":[{"id":"api_auth_schwab._schwab_refresh_token","name":"_schwab_refresh_token","module":"api_auth_schwab","class":null,"file":"auth/api_auth_schwab.py","lineno":11,"end_lineno":46,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":true,"decorators":[],"args":["token_data"]},{"id":"api_auth_schwab.schwab_get","name":"schwab_get","module":"api_auth_schwab","class":null,"file":"auth/api_auth_schwab.py","lineno":49,"end_lineno":68,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["url","params"]},{"id":"api_auth_schwab.schwab_get.<locals>._request","name":"_request","module":"api_auth_schwab","class":null,"file":"auth/api_auth_schwab.py","lineno":56,"end_lineno":62,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":true,"is_private":true,"decorators":[],"args":["access_token"]},{"id":"api_auth_tradier._load_api_key_tradier","name":"_load_api_key_tradier","module":"api_auth_tradier","class":null,"file":"auth/api_auth_tradier.py","lineno":1,"end_lineno":15,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":true,"decorators":[],"args":[]},{"id":"black_scholes_calcs.bs_delta","name":"bs_delta","module":"black_scholes_calcs","class":null,"file":"black_scholes/black_scholes_calcs.py","lineno":14,"end_lineno":20,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["S","K","T","r","sigma","is_call"]},{"id":"black_scholes_calcs.bs_gamma","name":"bs_gamma","module":"black_scholes_calcs","class":null,"file":"black_scholes/black_scholes_calcs.py","lineno":5,"end_lineno":11,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["S","K","T","r","sigma"]},{"id":"check_schwab_token.main","name":"main","module":"check_schwab_token","class":null,"file":"auth/check_schwab_token.py","lineno":19,"end_lineno":46,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":[]},{"id":"check_schwab_token.token_age_days","name":"token_age_days","module":"check_schwab_token","class":null,"file":"auth/check_schwab_token.py","lineno":13,"end_lineno":16,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":[]},{"id":"compare_greeks_spx._refresh_schwab_token","name":"_refresh_schwab_token","module":"compare_greeks_spx","class":null,"file":"volume/compare_greeks_spx.py","lineno":57,"end_lineno":81,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":true,"decorators":[],"args":["token_data"]},{"id":"compare_greeks_spx.bs_delta_q","name":"bs_delta_q","module":"compare_greeks_spx","class":null,"file":"volume/compare_greeks_spx.py","lineno":44,"end_lineno":48,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["S","K","T","r","q","sigma","is_call"]},{"id":"compare_greeks_spx.bs_gamma_q","name":"bs_gamma_q","module":"compare_greeks_spx","class":null,"file":"volume/compare_greeks_spx.py","lineno":51,"end_lineno":54,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["S","K","T","r","q","sigma"]},{"id":"compare_greeks_spx.fetch_schwab_chain","name":"fetch_schwab_chain","module":"compare_greeks_spx","class":null,"file":"volume/compare_greeks_spx.py","lineno":84,"end_lineno":111,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":[]},{"id":"compare_greeks_spx.fetch_schwab_chain.<locals>._request","name":"_request","module":"compare_greeks_spx","class":null,"file":"volume/compare_greeks_spx.py","lineno":91,"end_lineno":103,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":true,"is_private":true,"decorators":[],"args":["access_token"]},{"id":"compare_greeks_spx.get_spot","name":"get_spot","module":"compare_greeks_spx","class":null,"file":"volume/compare_greeks_spx.py","lineno":39,"end_lineno":41,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":[]},{"id":"compare_greeks_spx.main","name":"main","module":"compare_greeks_spx","class":null,"file":"volume/compare_greeks_spx.py","lineno":114,"end_lineno":171,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":[]},{"id":"fetch_massive_data.fetch_massive","name":"fetch_massive","module":"fetch_massive_data","class":null,"file":"getData/fetch_massive_data.py","lineno":5,"end_lineno":54,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["today_str","etf"]},{"id":"fetch_schwab_data._parse_chain_response","name":"_parse_chain_response","module":"fetch_schwab_data","class":null,"file":"getData/fetch_schwab_data.py","lineno":106,"end_lineno":124,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":true,"decorators":[],"args":["data"]},{"id":"fetch_schwab_data.fetch_schwab_chain","name":"fetch_schwab_chain","module":"fetch_schwab_data","class":null,"file":"getData/fetch_schwab_data.py","lineno":17,"end_lineno":94,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["schwab_symbol","today_str","max_dte"]},{"id":"fetch_schwab_data.fetch_schwab_quote_close","name":"fetch_schwab_quote_close","module":"fetch_schwab_data","class":null,"file":"getData/fetch_schwab_data.py","lineno":97,"end_lineno":103,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["symbol"]},{"id":"fetch_schwab_data_0dte.fetch_schwab_chain_0dte","name":"fetch_schwab_chain_0dte","module":"fetch_schwab_data_0dte","class":null,"file":"getData/fetch_schwab_data_0dte.py","lineno":10,"end_lineno":66,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["schwab_symbol","today_str"]},{"id":"fetch_tradier_data_0dte._tradier_headers","name":"_tradier_headers","module":"fetch_tradier_data_0dte","class":null,"file":"getData/fetch_tradier_data_0dte.py","lineno":9,"end_lineno":13,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":true,"decorators":[],"args":[]},{"id":"fetch_tradier_data_0dte.fetch_tradier","name":"fetch_tradier","module":"fetch_tradier_data_0dte","class":null,"file":"getData/fetch_tradier_data_0dte.py","lineno":16,"end_lineno":100,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["today_str","etf"]},{"id":"fetch_yfinance_data._download_options","name":"_download_options","module":"fetch_yfinance_data","class":null,"file":"getData/fetch_yfinance_data.py","lineno":11,"end_lineno":27,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":true,"decorators":[],"args":["ticker","symbol","today_str"]},{"id":"fetch_yfinance_data.collect_chain","name":"collect_chain","module":"fetch_yfinance_data","class":null,"file":"getData/fetch_yfinance_data.py","lineno":30,"end_lineno":88,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["ticker","spot","max_dte","symbol","today_str","dte_tau"]},{"id":"fetch_yfinance_data_0dte.fetch_yfinance","name":"fetch_yfinance","module":"fetch_yfinance_data_0dte","class":null,"file":"getData/fetch_yfinance_data_0dte.py","lineno":5,"end_lineno":71,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["today_str","etf"]},{"id":"gex.gex_calculations.apply_hysteresis","name":"apply_hysteresis","module":"gex.gex_calculations","class":null,"file":"gex/gex_calculations.py","lineno":313,"end_lineno":331,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["gex_map","new_wall","prev_wall"]},{"id":"gex.gex_calculations.compute_cpr","name":"compute_cpr","module":"gex.gex_calculations","class":null,"file":"gex/gex_calculations.py","lineno":50,"end_lineno":65,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["calls","puts"]},{"id":"gex.gex_calculations.compute_hvl","name":"compute_hvl","module":"gex.gex_calculations","class":null,"file":"gex/gex_calculations.py","lineno":94,"end_lineno":109,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["call_gex","put_gex"]},{"id":"gex.gex_calculations.compute_max_pain","name":"compute_max_pain","module":"gex.gex_calculations","class":null,"file":"gex/gex_calculations.py","lineno":68,"end_lineno":91,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["calls","puts"]},{"id":"gex.gex_calculations.compute_net_dex","name":"compute_net_dex","module":"gex.gex_calculations","class":null,"file":"gex/gex_calculations.py","lineno":30,"end_lineno":47,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["calls","puts","spot","r"]},{"id":"gex.gex_calculations.compute_per_strike_gex","name":"compute_per_strike_gex","module":"gex.gex_calculations","class":null,"file":"gex/gex_calculations.py","lineno":12,"end_lineno":27,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["arr","spot","r","sign"]},{"id":"gex.gex_calculations.compute_skew_slope","name":"compute_skew_slope","module":"gex.gex_calculations","class":null,"file":"gex/gex_calculations.py","lineno":209,"end_lineno":232,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["calls","puts","spot"]},{"id":"gex.gex_calculations.compute_vol_trigger","name":"compute_vol_trigger","module":"gex.gex_calculations","class":null,"file":"gex/gex_calculations.py","lineno":184,"end_lineno":206,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["call_gex","gamma_flip"]},{"id":"gex.gex_calculations.compute_wall_zones","name":"compute_wall_zones","module":"gex.gex_calculations","class":null,"file":"gex/gex_calculations.py","lineno":112,"end_lineno":167,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["gex_dict","spot","direction"]},{"id":"gex.gex_calculations.derive_profile_levels","name":"derive_profile_levels","module":"gex.gex_calculations","class":null,"file":"gex/gex_calculations.py","lineno":334,"end_lineno":390,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["data"]},{"id":"gex.gex_calculations.derive_profile_levels.<locals>.next_levels","name":"next_levels","module":"gex.gex_calculations","class":null,"file":"gex/gex_calculations.py","lineno":358,"end_lineno":360,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":true,"is_private":false,"decorators":[],"args":["nodes","wall","n"]},{"id":"gex.gex_calculations.find_gamma_flip","name":"find_gamma_flip","module":"gex.gex_calculations","class":null,"file":"gex/gex_calculations.py","lineno":235,"end_lineno":288,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["calls","puts","spot","skew_slope","skew_alpha","r"]},{"id":"gex.gex_calculations.read_previous_etf_walls","name":"read_previous_etf_walls","module":"gex.gex_calculations","class":null,"file":"gex/gex_calculations.py","lineno":291,"end_lineno":310,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["symbol","out_symbol"]},{"id":"gex.gex_calculations_0dte.compute_0dte_dex","name":"compute_0dte_dex","module":"gex.gex_calculations_0dte","class":null,"file":"gex/gex_calculations_0dte.py","lineno":62,"end_lineno":114,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["chain","spot"]},{"id":"gex.gex_calculations_0dte.compute_0dte_gex","name":"compute_0dte_gex","module":"gex.gex_calculations_0dte","class":null,"file":"gex/gex_calculations_0dte.py","lineno":5,"end_lineno":59,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["chain","spot"]},{"id":"gex.gex_calculations_0dte.compute_cpr","name":"compute_cpr","module":"gex.gex_calculations_0dte","class":null,"file":"gex/gex_calculations_0dte.py","lineno":116,"end_lineno":147,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["chain","spot"]},{"id":"gex.gex_calculations_0dte.find_gamma_flip_0dte","name":"find_gamma_flip_0dte","module":"gex.gex_calculations_0dte","class":null,"file":"gex/gex_calculations_0dte.py","lineno":150,"end_lineno":204,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["chain","spot"]},{"id":"gex.gex_compute.compute_gex_levels","name":"compute_gex_levels","module":"gex.gex_compute","class":null,"file":"gex/gex_compute.py","lineno":45,"end_lineno":441,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["symbol","max_dte","index_ticker_override","vix_ticker_override","no_index_conversion"]},{"id":"gex.gex_compute_0dte.run","name":"run","module":"gex.gex_compute_0dte","class":null,"file":"gex/gex_compute_0dte.py","lineno":7,"end_lineno":327,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["etf","index_ticker","out_symbol","no_index_conversion"]},{"id":"gex.gex_compute_0dte.run.<locals>.run_stock","name":"run_stock","module":"gex.gex_compute_0dte","class":null,"file":"gex/gex_compute_0dte.py","lineno":316,"end_lineno":327,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":true,"is_private":false,"decorators":[],"args":["ticker"]},{"id":"main.main","name":"main","module":"main","class":null,"file":"main.py","lineno":30,"end_lineno":167,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":[]},{"id":"oi_churn._refresh_schwab_token","name":"_refresh_schwab_token","module":"oi_churn","class":null,"file":"volume/oi_churn.py","lineno":44,"end_lineno":68,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":true,"decorators":[],"args":["token_data"]},{"id":"oi_churn.bucket_row","name":"bucket_row","module":"oi_churn","class":null,"file":"volume/oi_churn.py","lineno":215,"end_lineno":227,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["label","b"]},{"id":"oi_churn.bucket_summary","name":"bucket_summary","module":"oi_churn","class":null,"file":"volume/oi_churn.py","lineno":182,"end_lineno":199,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["rows"]},{"id":"oi_churn.compute_churn","name":"compute_churn","module":"oi_churn","class":null,"file":"volume/oi_churn.py","lineno":156,"end_lineno":179,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["today_snap","prior_snap"]},{"id":"oi_churn.fetch_schwab_chain","name":"fetch_schwab_chain","module":"oi_churn","class":null,"file":"volume/oi_churn.py","lineno":71,"end_lineno":97,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["symbol"]},{"id":"oi_churn.fetch_schwab_chain.<locals>._request","name":"_request","module":"oi_churn","class":null,"file":"volume/oi_churn.py","lineno":78,"end_lineno":89,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":true,"is_private":true,"decorators":[],"args":["access_token"]},{"id":"oi_churn.latest_prior_session","name":"latest_prior_session","module":"oi_churn","class":null,"file":"volume/oi_churn.py","lineno":138,"end_lineno":144,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["history","today_str"]},{"id":"oi_churn.load_history","name":"load_history","module":"oi_churn","class":null,"file":"volume/oi_churn.py","lineno":126,"end_lineno":135,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["symbol"]},{"id":"oi_churn.main","name":"main","module":"oi_churn","class":null,"file":"volume/oi_churn.py","lineno":236,"end_lineno":298,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":[]},{"id":"oi_churn.parse_chain","name":"parse_chain","module":"oi_churn","class":null,"file":"volume/oi_churn.py","lineno":100,"end_lineno":116,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["data"]},{"id":"oi_churn.print_table","name":"print_table","module":"oi_churn","class":null,"file":"volume/oi_churn.py","lineno":230,"end_lineno":233,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["rows"]},{"id":"oi_churn.save_today","name":"save_today","module":"oi_churn","class":null,"file":"volume/oi_churn.py","lineno":147,"end_lineno":153,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["symbol","history","today_str","snapshot"]},{"id":"oi_churn.state_path","name":"state_path","module":"oi_churn","class":null,"file":"volume/oi_churn.py","lineno":122,"end_lineno":123,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["symbol"]},{"id":"otm_call_flow_spx.collect_otm_calls","name":"collect_otm_calls","module":"otm_call_flow_spx","class":null,"file":"volume/otm_call_flow_spx.py","lineno":66,"end_lineno":148,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["ticker","spot_etf"]},{"id":"otm_call_flow_spx.compute_metrics","name":"compute_metrics","module":"otm_call_flow_spx","class":null,"file":"volume/otm_call_flow_spx.py","lineno":151,"end_lineno":176,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["rows","spot_etf"]},{"id":"otm_call_flow_spx.compute_metrics.<locals>.bucket","name":"bucket","module":"otm_call_flow_spx","class":null,"file":"volume/otm_call_flow_spx.py","lineno":156,"end_lineno":174,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":true,"is_private":false,"decorators":[],"args":["bucket_rows"]},{"id":"otm_call_flow_spx.determine_signal","name":"determine_signal","module":"otm_call_flow_spx","class":null,"file":"volume/otm_call_flow_spx.py","lineno":193,"end_lineno":223,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["m_total","m_near","m_far","prior"]},{"id":"otm_call_flow_spx.fetch_spot","name":"fetch_spot","module":"otm_call_flow_spx","class":null,"file":"volume/otm_call_flow_spx.py","lineno":47,"end_lineno":63,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":[]},{"id":"otm_call_flow_spx.fmt_bn","name":"fmt_bn","module":"otm_call_flow_spx","class":null,"file":"volume/otm_call_flow_spx.py","lineno":226,"end_lineno":233,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["val"]},{"id":"otm_call_flow_spx.load_prior","name":"load_prior","module":"otm_call_flow_spx","class":null,"file":"volume/otm_call_flow_spx.py","lineno":179,"end_lineno":184,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":[]},{"id":"otm_call_flow_spx.main","name":"main","module":"otm_call_flow_spx","class":null,"file":"volume/otm_call_flow_spx.py","lineno":257,"end_lineno":303,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":[]},{"id":"otm_call_flow_spx.print_pinescript_block","name":"print_pinescript_block","module":"otm_call_flow_spx","class":null,"file":"volume/otm_call_flow_spx.py","lineno":236,"end_lineno":254,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["m_near","m_far","m_total","signal","momentum_str","spot_spx","ts"]},{"id":"otm_call_flow_spx.save_state","name":"save_state","module":"otm_call_flow_spx","class":null,"file":"volume/otm_call_flow_spx.py","lineno":187,"end_lineno":190,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["data"]},{"id":"output_gex_file.write_gex_file","name":"write_gex_file","module":"output_gex_file","class":null,"file":"outputs/output_gex_file.py","lineno":11,"end_lineno":67,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["data30","data90"]},{"id":"output_gex_file.write_gex_file.<locals>.build_section","name":"build_section","module":"output_gex_file","class":null,"file":"outputs/output_gex_file.py","lineno":18,"end_lineno":40,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":true,"is_private":false,"decorators":[],"args":["data"]},{"id":"output_gex_file_0dte.write_output","name":"write_output","module":"output_gex_file_0dte","class":null,"file":"outputs/output_gex_file_0dte.py","lineno":1,"end_lineno":47,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["data","output_path"]},{"id":"paths.get_project_root","name":"get_project_root","module":"paths","class":null,"file":"utils/paths.py","lineno":4,"end_lineno":13,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":[]},{"id":"pinescript_output._print_dte_section","name":"_print_dte_section","module":"pinescript_output","class":null,"file":"outputs/pinescript_output.py","lineno":32,"end_lineno":74,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":true,"decorators":[],"args":["data","suffix","levels"]},{"id":"pinescript_output.print_pinescript_block","name":"print_pinescript_block","module":"pinescript_output","class":null,"file":"outputs/pinescript_output.py","lineno":8,"end_lineno":30,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["data30","data90"]},{"id":"pinescript_output_0dte.print_pinescript_block","name":"print_pinescript_block","module":"pinescript_output_0dte","class":null,"file":"outputs/pinescript_output_0dte.py","lineno":5,"end_lineno":84,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["data"]},{"id":"rich_terminal_output.print_gex_summary","name":"print_gex_summary","module":"rich_terminal_output","class":null,"file":"outputs/rich_terminal_output.py","lineno":8,"end_lineno":99,"kind":"function","is_async":false,"is_property":false,"is_static":false,"is_classmethod":false,"is_method":false,"is_nested":false,"is_private":false,"decorators":[],"args":["data"]}],"edges":[{"caller":"api_auth_schwab.schwab_get","callee":"api_auth_schwab._schwab_refresh_token","lineno":66,"file":"auth/api_auth_schwab.py","provenance":"auth/api_auth_schwab.py:66","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"api_auth_schwab.schwab_get","callee":"api_auth_schwab.schwab_get.<locals>._request","lineno":64,"file":"auth/api_auth_schwab.py","provenance":"auth/api_auth_schwab.py:64","confidence":"resolved","via":"name-unique","candidates":[],"is_cycle":false},{"caller":"check_schwab_token.main","callee":"check_schwab_token.token_age_days","lineno":20,"file":"auth/check_schwab_token.py","provenance":"auth/check_schwab_token.py:20","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"compare_greeks_spx.fetch_schwab_chain","callee":"compare_greeks_spx._refresh_schwab_token","lineno":107,"file":"volume/compare_greeks_spx.py","provenance":"volume/compare_greeks_spx.py:107","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"compare_greeks_spx.fetch_schwab_chain","callee":"compare_greeks_spx.fetch_schwab_chain.<locals>._request","lineno":105,"file":"volume/compare_greeks_spx.py","provenance":"volume/compare_greeks_spx.py:105","confidence":"resolved","via":"name-unique","candidates":[],"is_cycle":false},{"caller":"compare_greeks_spx.main","callee":"compare_greeks_spx.bs_delta_q","lineno":161,"file":"volume/compare_greeks_spx.py","provenance":"volume/compare_greeks_spx.py:161","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"compare_greeks_spx.main","callee":"compare_greeks_spx.bs_gamma_q","lineno":165,"file":"volume/compare_greeks_spx.py","provenance":"volume/compare_greeks_spx.py:165","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"compare_greeks_spx.main","callee":"compare_greeks_spx.fetch_schwab_chain","lineno":120,"file":"volume/compare_greeks_spx.py","provenance":"volume/compare_greeks_spx.py:120","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"compare_greeks_spx.main","callee":"compare_greeks_spx.get_spot","lineno":117,"file":"volume/compare_greeks_spx.py","provenance":"volume/compare_greeks_spx.py:117","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"fetch_schwab_data.fetch_schwab_chain","callee":"fetch_schwab_data._parse_chain_response","lineno":87,"file":"getData/fetch_schwab_data.py","provenance":"getData/fetch_schwab_data.py:87","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"fetch_tradier_data_0dte.fetch_tradier","callee":"fetch_tradier_data_0dte._tradier_headers","lineno":31,"file":"getData/fetch_tradier_data_0dte.py","provenance":"getData/fetch_tradier_data_0dte.py:31","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"fetch_yfinance_data.collect_chain","callee":"fetch_yfinance_data._download_options","lineno":54,"file":"getData/fetch_yfinance_data.py","provenance":"getData/fetch_yfinance_data.py:54","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"gex.gex_calculations.derive_profile_levels","callee":"gex.gex_calculations.derive_profile_levels.<locals>.next_levels","lineno":362,"file":"gex/gex_calculations.py","provenance":"gex/gex_calculations.py:362","confidence":"resolved","via":"name-unique","candidates":[],"is_cycle":false},{"caller":"gex.gex_calculations_0dte.compute_0dte_dex","callee":"black_scholes_calcs.bs_delta","lineno":101,"file":"gex/gex_calculations_0dte.py","provenance":"gex/gex_calculations_0dte.py:101","confidence":"resolved","via":"name-unique","candidates":[],"is_cycle":false},{"caller":"gex.gex_calculations_0dte.compute_0dte_gex","callee":"black_scholes_calcs.bs_gamma","lineno":47,"file":"gex/gex_calculations_0dte.py","provenance":"gex/gex_calculations_0dte.py:47","confidence":"resolved","via":"name-unique","candidates":[],"is_cycle":false},{"caller":"gex.gex_calculations_0dte.find_gamma_flip_0dte","callee":"black_scholes_calcs.bs_gamma","lineno":190,"file":"gex/gex_calculations_0dte.py","provenance":"gex/gex_calculations_0dte.py:190","confidence":"resolved","via":"name-unique","candidates":[],"is_cycle":false},{"caller":"gex.gex_compute_0dte.run","callee":"fetch_massive_data.fetch_massive","lineno":41,"file":"gex/gex_compute_0dte.py","provenance":"gex/gex_compute_0dte.py:41","confidence":"resolved","via":"name-unique","candidates":[],"is_cycle":false},{"caller":"gex.gex_compute_0dte.run","callee":"fetch_tradier_data_0dte.fetch_tradier","lineno":43,"file":"gex/gex_compute_0dte.py","provenance":"gex/gex_compute_0dte.py:43","confidence":"resolved","via":"name-unique","candidates":[],"is_cycle":false},{"caller":"gex.gex_compute_0dte.run","callee":"fetch_yfinance_data_0dte.fetch_yfinance","lineno":45,"file":"gex/gex_compute_0dte.py","provenance":"gex/gex_compute_0dte.py:45","confidence":"resolved","via":"name-unique","candidates":[],"is_cycle":false},{"caller":"gex.gex_compute_0dte.run","callee":"gex.gex_calculations.compute_cpr","lineno":87,"file":"gex/gex_compute_0dte.py","provenance":"gex/gex_compute_0dte.py:87","confidence":"ambiguous","via":"name","candidates":["gex.gex_calculations.compute_cpr","gex.gex_calculations_0dte.compute_cpr"],"is_cycle":false},{"caller":"gex.gex_compute_0dte.run","callee":"gex.gex_calculations_0dte.compute_0dte_dex","lineno":80,"file":"gex/gex_compute_0dte.py","provenance":"gex/gex_compute_0dte.py:80","confidence":"resolved","via":"name-unique","candidates":[],"is_cycle":false},{"caller":"gex.gex_compute_0dte.run","callee":"gex.gex_calculations_0dte.compute_0dte_gex","lineno":72,"file":"gex/gex_compute_0dte.py","provenance":"gex/gex_compute_0dte.py:72","confidence":"resolved","via":"name-unique","candidates":[],"is_cycle":false},{"caller":"gex.gex_compute_0dte.run","callee":"gex.gex_calculations_0dte.find_gamma_flip_0dte","lineno":217,"file":"gex/gex_compute_0dte.py","provenance":"gex/gex_compute_0dte.py:217","confidence":"resolved","via":"name-unique","candidates":[],"is_cycle":false},{"caller":"gex.gex_compute_0dte.run","callee":"otm_call_flow_spx.print_pinescript_block","lineno":297,"file":"gex/gex_compute_0dte.py","provenance":"gex/gex_compute_0dte.py:297","confidence":"ambiguous","via":"name","candidates":["otm_call_flow_spx.print_pinescript_block","pinescript_output.print_pinescript_block","pinescript_output_0dte.print_pinescript_block"],"is_cycle":false},{"caller":"gex.gex_compute_0dte.run","callee":"output_gex_file_0dte.write_output","lineno":296,"file":"gex/gex_compute_0dte.py","provenance":"gex/gex_compute_0dte.py:296","confidence":"resolved","via":"name-unique","candidates":[],"is_cycle":false},{"caller":"oi_churn.fetch_schwab_chain","callee":"oi_churn._refresh_schwab_token","lineno":93,"file":"volume/oi_churn.py","provenance":"volume/oi_churn.py:93","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"oi_churn.fetch_schwab_chain","callee":"oi_churn.fetch_schwab_chain.<locals>._request","lineno":91,"file":"volume/oi_churn.py","provenance":"volume/oi_churn.py:91","confidence":"resolved","via":"name-unique","candidates":[],"is_cycle":false},{"caller":"oi_churn.load_history","callee":"oi_churn.state_path","lineno":129,"file":"volume/oi_churn.py","provenance":"volume/oi_churn.py:129","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"oi_churn.main","callee":"oi_churn.bucket_row","lineno":287,"file":"volume/oi_churn.py","provenance":"volume/oi_churn.py:287","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"oi_churn.main","callee":"oi_churn.bucket_summary","lineno":287,"file":"volume/oi_churn.py","provenance":"volume/oi_churn.py:287","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"oi_churn.main","callee":"oi_churn.compute_churn","lineno":273,"file":"volume/oi_churn.py","provenance":"volume/oi_churn.py:273","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"oi_churn.main","callee":"oi_churn.fetch_schwab_chain","lineno":251,"file":"volume/oi_churn.py","provenance":"volume/oi_churn.py:251","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"oi_churn.main","callee":"oi_churn.latest_prior_session","lineno":261,"file":"volume/oi_churn.py","provenance":"volume/oi_churn.py:261","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"oi_churn.main","callee":"oi_churn.load_history","lineno":260,"file":"volume/oi_churn.py","provenance":"volume/oi_churn.py:260","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"oi_churn.main","callee":"oi_churn.parse_chain","lineno":256,"file":"volume/oi_churn.py","provenance":"volume/oi_churn.py:256","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"oi_churn.main","callee":"oi_churn.print_table","lineno":285,"file":"volume/oi_churn.py","provenance":"volume/oi_churn.py:285","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"oi_churn.main","callee":"oi_churn.save_today","lineno":264,"file":"volume/oi_churn.py","provenance":"volume/oi_churn.py:264","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"oi_churn.main","callee":"oi_churn.state_path","lineno":266,"file":"volume/oi_churn.py","provenance":"volume/oi_churn.py:266","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"oi_churn.save_today","callee":"oi_churn.state_path","lineno":152,"file":"volume/oi_churn.py","provenance":"volume/oi_churn.py:152","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"otm_call_flow_spx.compute_metrics","callee":"otm_call_flow_spx.compute_metrics.<locals>.bucket","lineno":176,"file":"volume/otm_call_flow_spx.py","provenance":"volume/otm_call_flow_spx.py:176","confidence":"resolved","via":"name-unique","candidates":[],"is_cycle":false},{"caller":"otm_call_flow_spx.main","callee":"otm_call_flow_spx.collect_otm_calls","lineno":271,"file":"volume/otm_call_flow_spx.py","provenance":"volume/otm_call_flow_spx.py:271","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"otm_call_flow_spx.main","callee":"otm_call_flow_spx.compute_metrics","lineno":282,"file":"volume/otm_call_flow_spx.py","provenance":"volume/otm_call_flow_spx.py:282","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"otm_call_flow_spx.main","callee":"otm_call_flow_spx.determine_signal","lineno":284,"file":"volume/otm_call_flow_spx.py","provenance":"volume/otm_call_flow_spx.py:284","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"otm_call_flow_spx.main","callee":"otm_call_flow_spx.fetch_spot","lineno":266,"file":"volume/otm_call_flow_spx.py","provenance":"volume/otm_call_flow_spx.py:266","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"otm_call_flow_spx.main","callee":"otm_call_flow_spx.fmt_bn","lineno":287,"file":"volume/otm_call_flow_spx.py","provenance":"volume/otm_call_flow_spx.py:287","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"otm_call_flow_spx.main","callee":"otm_call_flow_spx.load_prior","lineno":283,"file":"volume/otm_call_flow_spx.py","provenance":"volume/otm_call_flow_spx.py:283","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"otm_call_flow_spx.main","callee":"otm_call_flow_spx.print_pinescript_block","lineno":302,"file":"volume/otm_call_flow_spx.py","provenance":"volume/otm_call_flow_spx.py:302","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"otm_call_flow_spx.main","callee":"otm_call_flow_spx.save_state","lineno":299,"file":"volume/otm_call_flow_spx.py","provenance":"volume/otm_call_flow_spx.py:299","confidence":"resolved","via":"local","candidates":[],"is_cycle":false},{"caller":"output_gex_file.write_gex_file","callee":"output_gex_file.write_gex_file.<locals>.build_section","lineno":54,"file":"outputs/output_gex_file.py","provenance":"outputs/output_gex_file.py:54","confidence":"resolved","via":"name-unique","candidates":[],"is_cycle":false},{"caller":"pinescript_output.print_pinescript_block","callee":"pinescript_output._print_dte_section","lineno":26,"file":"outputs/pinescript_output.py","provenance":"outputs/pinescript_output.py:26","confidence":"resolved","via":"local","candidates":[],"is_cycle":false}]}</script>
+<script>
+"use strict";
+const RAW = JSON.parse(document.getElementById('graph-data').textContent);
+const SVGNS = "http://www.w3.org/2000/svg";
+const KIND_COLORS = {function:'--k-function',method:'--k-method',constructor:'--k-constructor',
+  property:'--k-property',staticmethod:'--k-staticmethod',classmethod:'--k-classmethod',async:'--k-async'};
+function cssv(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+
+// ---- Build base (function-level) model ----
+const baseNodes = RAW.nodes.map(n=>({...n}));
+const idIndex = new Map(baseNodes.map((n,i)=>[n.id,i]));
+const baseLinks = RAW.edges
+  .filter(e=>idIndex.has(e.caller)&&idIndex.has(e.callee))
+  .map(e=>({source:e.caller,target:e.callee,confidence:e.confidence,is_cycle:e.is_cycle,
+            candidates:e.candidates,provenance:e.provenance}));
+
+// ---- Rollup to class / module levels ----
+function rollup(level){
+  if(level==='function') return {nodes:baseNodes.map(n=>({...n})),links:baseLinks.map(l=>({...l}))};
+  const keyOf=(n)=> level==='module' ? n.module
+        : (n.class || (n.module+'.<functions>'));
+  const labelOf=(n)=> level==='module' ? n.module.split('.').slice(-1)[0]
+        : (n.class ? n.class.split('.').slice(-1)[0] : n.module.split('.').slice(-1)[0]+' ()');
+  const groups=new Map();
+  for(const n of baseNodes){const k=keyOf(n);
+    if(!groups.has(k)) groups.set(k,{id:k,name:labelOf(n),module:n.module,kind:'group',members:0});
+    groups.get(k).members++;}
+  const nkey=new Map(baseNodes.map(n=>[n.id,keyOf(n)]));
+  const lset=new Map();
+  for(const l of baseLinks){const s=nkey.get(l.source),t=nkey.get(l.target);
+    if(s===t) continue; const key=s+'->'+t;
+    if(!lset.has(key)) lset.set(key,{source:s,target:t,confidence:l.confidence,is_cycle:l.is_cycle});
+    else{const e=lset.get(key); if(l.is_cycle)e.is_cycle=true;
+      if(l.confidence!=='ambiguous')e.confidence='resolved';}}
+  return {nodes:[...groups.values()],links:[...lset.values()]};
+}
+
+// ---- State ----
+let level='function', model=rollup(level), selected=null, cyclesOnly=false;
+const view={x:0,y:0,k:1};
+let W=0,H=0;
+const svg=document.getElementById('graph');
+const gLinks=document.createElementNS(SVGNS,'g');
+const gNodes=document.createElementNS(SVGNS,'g');
+const root=document.createElementNS(SVGNS,'g');
+root.appendChild(gLinks);root.appendChild(gNodes);svg.appendChild(root);
+
+// ---- Force simulation (velocity Verlet, O(n^2) — fine for typical graphs) ----
+let sim=null;
+function layout(){
+  const nodes=model.nodes, links=model.links;
+  const adj=new Map(nodes.map(n=>[n.id,[]]));
+  for(const l of links){adj.get(l.source)?.push(l.target);adj.get(l.target)?.push(l.source);}
+  const idx=new Map(nodes.map((n,i)=>[n.id,i]));
+  // Larger initial spiral for smaller graphs so nodes don't start on top of
+  // each other; repulsion scales up when there are fewer nodes.
+  const spread=Math.max(26,520/Math.sqrt(nodes.length+1));
+  nodes.forEach((n,i)=>{if(n.x===undefined){const a=i*2.399;const r=40+Math.sqrt(i)*spread*0.9;
+    n.x=W/2+Math.cos(a)*r;n.y=H/2+Math.sin(a)*r;}n.vx=0;n.vy=0;});
+  const repel=(nodes.length<40?5200:3200)*(cyclesOnly?0.9:1);
+  const restLen=nodes.length<40?150:95;
+  let alpha=1;
+  function tick(){
+    alpha*=0.985;
+    // repulsion
+    for(let i=0;i<nodes.length;i++){const a=nodes[i];
+      for(let j=i+1;j<nodes.length;j++){const b=nodes[j];
+        let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy+0.01;
+        const f=repel/d2; const d=Math.sqrt(d2);
+        const fx=dx/d*f,fy=dy/d*f; a.vx+=fx;a.vy+=fy;b.vx-=fx;b.vy-=fy;}}
+    // springs
+    for(const l of links){const a=nodes[idx.get(l.source)],b=nodes[idx.get(l.target)];
+      if(!a||!b)continue; let dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)+.01;
+      const f=(d-restLen)*0.02;
+      const fx=dx/d*f,fy=dy/d*f; a.vx+=fx;a.vy+=fy;b.vx-=fx;b.vy-=fy;}
+    // centering + integrate
+    for(const n of nodes){n.vx+=(W/2-n.x)*0.0006;n.vy+=(H/2-n.y)*0.0006;
+      if(n.fx!=null){n.x=n.fx;n.y=n.fy;} else {n.x+=n.vx*alpha;n.y+=n.vy*alpha;}
+      n.vx*=0.86;n.vy*=0.86;}
+    positions();
+    if(alpha>0.02) sim=requestAnimationFrame(tick); else {sim=null;drawMinimap();}
+  }
+  if(sim)cancelAnimationFrame(sim);
+  sim=requestAnimationFrame(tick);
+}
+
+// ---- Render ----
+const nodeEls=new Map(), linkEls=[];
+function nodeRadius(n){return n.kind==='group'?Math.min(9+Math.sqrt(n.members)*2.5,26):
+  (degree.get(n.id)?Math.min(5+degree.get(n.id)*1.2,16):5);}
+let degree=new Map();
+function build(){
+  gLinks.innerHTML='';gNodes.innerHTML='';nodeEls.clear();linkEls.length=0;
+  degree=new Map(model.nodes.map(n=>[n.id,0]));
+  for(const l of model.links){degree.set(l.source,(degree.get(l.source)||0)+1);
+    degree.set(l.target,(degree.get(l.target)||0)+1);}
+  for(const l of model.links){const p=document.createElementNS(SVGNS,'path');
+    p.setAttribute('class','link'+(l.is_cycle?' cycle':'')+(l.confidence==='ambiguous'?' ambiguous':''));
+    p.setAttribute('marker-end','url(#arrow)');l.el=p;gLinks.appendChild(p);linkEls.push(l);}
+  for(const n of model.nodes){const g=document.createElementNS(SVGNS,'g');g.setAttribute('class','node');
+    const c=document.createElementNS(SVGNS,'circle');c.setAttribute('r',nodeRadius(n));
+    const col=n.kind==='group'?cssv('--accent2'):cssv(KIND_COLORS[n.kind]||'--k-function');
+    c.setAttribute('fill',col);
+    const t=document.createElementNS(SVGNS,'text');t.setAttribute('x',nodeRadius(n)+3);
+    t.setAttribute('y',3);t.textContent=n.name;
+    g.appendChild(c);g.appendChild(t);n.el=g;nodeEls.set(n.id,g);gNodes.appendChild(g);
+    g.addEventListener('click',ev=>{ev.stopPropagation();select(n.id);});
+    enableDrag(g,n);}
+  ensureDefs();
+  document.getElementById('stat').textContent=
+    model.nodes.length+' nodes · '+model.links.length+' edges'+
+    (RAW.stats.cycles?(' · '+RAW.stats.cycles+' cyclic'):'')+
+    (RAW.stats.ambiguous_edges?(' · '+RAW.stats.ambiguous_edges+' ambiguous'):'');
+  if(typeof churnOn!=='undefined'&&churnOn) paintChurn();
+}
+function ensureDefs(){
+  if(svg.querySelector('defs'))return;
+  const defs=document.createElementNS(SVGNS,'defs');
+  const m=document.createElementNS(SVGNS,'marker');
+  m.id='arrow';m.setAttribute('viewBox','0 0 10 10');m.setAttribute('refX','9');m.setAttribute('refY','5');
+  m.setAttribute('markerWidth','6');m.setAttribute('markerHeight','6');m.setAttribute('orient','auto-start-reverse');
+  const path=document.createElementNS(SVGNS,'path');path.setAttribute('d','M0,0 L10,5 L0,10 z');
+  path.setAttribute('fill',cssv('--edge'));m.appendChild(path);defs.appendChild(m);svg.appendChild(defs);
+}
+function positions(){
+  for(const l of linkEls){const a=nodeById(l.source),b=nodeById(l.target);if(!a||!b)continue;
+    const r=nodeRadius(b)+7;let dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)||1;
+    const ex=b.x-dx/d*r,ey=b.y-dy/d*r;
+    l.el.setAttribute('d',`M${a.x},${a.y} L${ex},${ey}`);}
+  for(const n of model.nodes) n.el.setAttribute('transform',`translate(${n.x},${n.y})`);
+}
+function nodeById(id){return model.nodes.find(n=>n.id===id);}
+function applyView(){root.setAttribute('transform',`translate(${view.x},${view.y}) scale(${view.k})`);drawMinimap();}
+
+// ---- Interaction: pan / zoom / drag ----
+function resize(){const r=svg.getBoundingClientRect();W=r.width;H=r.height;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);}
+window.addEventListener('resize',()=>{resize();});
+svg.addEventListener('wheel',ev=>{ev.preventDefault();const s=ev.deltaY<0?1.1:0.9;
+  const mx=ev.offsetX,my=ev.offsetY;
+  view.x=mx-(mx-view.x)*s;view.y=my-(my-view.y)*s;view.k*=s;applyView();},{passive:false});
+let panning=false,px=0,py=0;
+svg.addEventListener('mousedown',ev=>{if(ev.target.closest('.node'))return;panning=true;px=ev.clientX;py=ev.clientY;svg.classList.add('grabbing');});
+window.addEventListener('mousemove',ev=>{if(!panning)return;view.x+=ev.clientX-px;view.y+=ev.clientY-py;px=ev.clientX;py=ev.clientY;applyView();});
+window.addEventListener('mouseup',()=>{panning=false;svg.classList.remove('grabbing');});
+function enableDrag(g,n){let dragging=false;
+  g.addEventListener('mousedown',ev=>{ev.stopPropagation();dragging=true;n.fx=n.x;n.fy=n.y;});
+  window.addEventListener('mousemove',ev=>{if(!dragging)return;
+    n.fx+=(ev.movementX)/view.k;n.fy+=(ev.movementY)/view.k;n.x=n.fx;n.y=n.fy;positions();});
+  window.addEventListener('mouseup',()=>{if(dragging){dragging=false;n.fx=null;n.fy=null;if(!sim)layout();}});}
+
+function fit(){
+  if(!model.nodes.length)return;
+  const xs=model.nodes.map(n=>n.x),ys=model.nodes.map(n=>n.y);
+  const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+  const gw=maxX-minX+120,gh=maxY-minY+120;
+  view.k=Math.min(W/gw,H/gh,2);
+  view.x=W/2-((minX+maxX)/2)*view.k;view.y=H/2-((minY+maxY)/2)*view.k;applyView();}
+
+// ---- Selection / inspector ----
+function neighbors(id){const ins=[],outs=[];
+  for(const l of baseLinks){if(l.target===id)ins.push(l.source);if(l.source===id)outs.push(l.target);}
+  return{ins:[...new Set(ins)],outs:[...new Set(outs)]};}
+function select(id){
+  selected=id;highlight(id);
+  const g=RAW.nodes.find(n=>n.id===id);
+  const insp=document.getElementById('inspector');
+  if(level!=='function'||!g){ // group node: show membership summary
+    const grp=model.nodes.find(n=>n.id===id);
+    document.getElementById('ikind').textContent=level;
+    document.getElementById('iname').textContent=grp?grp.name:id;
+    document.getElementById('ibody').innerHTML=grp?`<div class="row"><b>${grp.members}</b> definitions</div>
+      <div class="row"><code>${id}</code></div>`:'';
+    insp.classList.add('show');location.hash=encodeURIComponent(level+'|'+id);return;}
+  const nb=neighbors(id);
+  document.getElementById('ikind').textContent=g.kind+(g.is_async?' · async':'')+(g.is_private?' · private':'');
+  document.getElementById('iname').textContent=g.name;
+  const decs=(g.decorators||[]).map(d=>'@'+d).join(' ');
+  const listItem=(x)=>`<li data-id="${x}">${x.split('.').slice(-1)[0]} <span class="sub" style="color:var(--muted)">${x.split('.').slice(0,-1).join('.')}</span></li>`;
+  const loc=g.file+':'+g.lineno;
+  const gh=(RAW.repo&&RAW.repo.url&&g.file)
+    ? `<a class="srclink" target="_blank" rel="noopener" href="${RAW.repo.url}/blob/${RAW.repo.link_ref||'HEAD'}/${g.file}#L${g.lineno}">Open on GitHub ↗</a>`
+    : '';
+  document.getElementById('ibody').innerHTML=`
+    <div class="row"><b>Qualified</b><br><code>${g.id}</code></div>
+    <div class="row"><b>Location</b> <code>${loc}</code>
+      <button class="srcbtn" data-copy="${loc}" title="Copy file:line">⧉</button> ${gh}</div>
+    ${g.class?`<div class="row"><b>Class</b> <code>${g.class}</code></div>`:''}
+    ${decs?`<div class="row"><b>Decorators</b> <code>${decs}</code></div>`:''}
+    <div class="row"><b>Called by (${nb.ins.length})</b></div><ul>${nb.ins.map(listItem).join('')||'<li class="sub">—</li>'}</ul>
+    <div class="row"><b>Calls (${nb.outs.length})</b></div><ul>${nb.outs.map(listItem).join('')||'<li class="sub">—</li>'}</ul>`;
+  insp.classList.add('show');
+  const cbtn=insp.querySelector('.srcbtn[data-copy]');
+  if(cbtn)cbtn.addEventListener('click',()=>{const v=cbtn.getAttribute('data-copy');
+    (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(v):Promise.reject())
+      .then(()=>{cbtn.textContent='✓';setTimeout(()=>cbtn.textContent='⧉',1000);}).catch(()=>{});});
+  insp.querySelectorAll('li[data-id]').forEach(li=>li.addEventListener('click',()=>{
+    const tid=li.getAttribute('data-id');
+    if(level!=='function'){setLevel('function');setTimeout(()=>select(tid),60);}else select(tid);
+    centerOn(tid);}));
+  location.hash=encodeURIComponent('function|'+id);
+}
+function centerOn(id){const n=nodeById(id);if(!n)return;view.k=Math.max(view.k,1.1);
+  view.x=W/2-n.x*view.k;view.y=H/2-n.y*view.k;applyView();}
+function highlight(id){
+  const nb=neighbors(id);const keep=new Set([id,...nb.ins,...nb.outs]);
+  const mapKeep=new Set();
+  if(level==='function'){[...keep].forEach(x=>mapKeep.add(x));}
+  else{ // translate to current level keys
+    for(const bn of baseNodes){if(keep.has(bn.id)){
+      const k=level==='module'?bn.module:(bn.class||bn.module+'.<functions>');mapKeep.add(k);}}}
+  model.nodes.forEach(n=>{n.el.classList.toggle('dim',!mapKeep.has(n.id)&&mapKeep.size>0);
+    n.el.classList.toggle('hl',n.id===id||(level!=='function'&&mapKeep.has(n.id)&&n.id===selKey(id)));});
+  model.nodes.forEach(n=>{if(n.id===id)n.el.classList.add('hl');});
+  linkEls.forEach(l=>{const on=mapKeep.has(l.source)&&mapKeep.has(l.target);
+    l.el.classList.toggle('dim',mapKeep.size>0&&!on);l.el.classList.toggle('hl-edge',on&&(l.source===id||l.target===id));});
+}
+function selKey(id){const bn=baseNodes.find(n=>n.id===id);if(!bn)return id;
+  return level==='module'?bn.module:(bn.class||bn.module+'.<functions>');}
+function clearHighlight(){model.nodes.forEach(n=>n.el.classList.remove('dim','hl'));
+  linkEls.forEach(l=>l.el.classList.remove('dim','hl-edge'));}
+svg.addEventListener('click',()=>{selected=null;clearHighlight();
+  document.getElementById('inspector').classList.remove('show');});
+document.getElementById('iclose').addEventListener('click',()=>{
+  document.getElementById('inspector').classList.remove('show');selected=null;clearHighlight();});
+
+// ---- Level switch ----
+function setLevel(l){level=l;document.querySelectorAll('#levels button').forEach(b=>b.classList.toggle('on',b.dataset.level===l));
+  model=rollup(l);model.nodes.forEach(n=>{n.x=undefined;});build();resize();layout();setTimeout(fit,400);}
+document.querySelectorAll('#levels button').forEach(b=>b.addEventListener('click',()=>setLevel(b.dataset.level)));
+
+// ---- Search ----
+const search=document.getElementById('search');
+search.addEventListener('input',()=>{const q=search.value.toLowerCase().trim();
+  if(!q){clearHighlight();return;}
+  let first=null;model.nodes.forEach(n=>{const hit=n.name.toLowerCase().includes(q)||n.id.toLowerCase().includes(q);
+    n.el.classList.toggle('dim',!hit);n.el.classList.toggle('hl',hit);if(hit&&!first)first=n;});
+  linkEls.forEach(l=>l.el.classList.add('dim'));
+  if(first)centerOn(first.id);});
+
+// ---- Module filter ----
+const mf=document.getElementById('moduleFilter');
+[...new Set(baseNodes.map(n=>n.module))].sort().forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;mf.appendChild(o);});
+mf.addEventListener('change',()=>{const m=mf.value;
+  model.nodes.forEach(n=>{const bn=baseNodes.find(x=>x.id===n.id);
+    const mod=n.kind==='group'?n.module:(bn?bn.module:'');
+    const show=!m||mod.startsWith(m);n.el.style.display=show?'':'none';});
+  linkEls.forEach(l=>{const a=nodeById(l.source),b=nodeById(l.target);
+    l.el.style.display=(!m||(a&&a.el.style.display!=='none'&&b&&b.el.style.display!=='none'))?'':'none';});});
+
+// ---- Churn overlay (git change-frequency heatmap) ----
+const maxChurn=Math.max(0,...baseNodes.map(n=>n.churn||0));
+let churnOn=false;
+function heat(t){ // t in [0,1] -> blue(cool) -> amber -> red(hot)
+  t=Math.max(0,Math.min(1,t));
+  const c=(a,b)=>Math.round(a+(b-a)*t);
+  if(t<0.5){const u=t/0.5;return `rgb(${Math.round(47+(210-47)*u)},${Math.round(129+(153-129)*u)},${Math.round(247+(34-247)*u)})`;}
+  const u=(t-0.5)/0.5;return `rgb(${Math.round(210+(248-210)*u)},${Math.round(153+(81-153)*u)},${Math.round(34+(73-34)*u)})`;}
+function paintChurn(){
+  model.nodes.forEach(n=>{const c=n.el.querySelector('circle');
+    if(!churnOn||maxChurn===0){const col=n.kind==='group'?cssv('--accent2'):cssv(KIND_COLORS[n.kind]||'--k-function');c.setAttribute('fill',col);return;}
+    let ch=0;if(n.kind==='group'){const mem=baseNodes.filter(b=>(level==='module'?b.module:(b.class||b.module+'.<functions>'))===n.id);ch=Math.max(0,...mem.map(b=>b.churn||0));}
+    else{const b=baseNodes.find(x=>x.id===n.id);ch=b?(b.churn||0):0;}
+    c.setAttribute('fill',ch>0?heat(ch/maxChurn):cssv('--muted'));});}
+if(maxChurn>0) document.getElementById('churnBtn').style.display='';
+document.getElementById('churnBtn').addEventListener('click',()=>{churnOn=!churnOn;
+  document.getElementById('churnBtn').classList.toggle('on',churnOn);paintChurn();});
+
+// ---- Cycles toggle ----
+document.getElementById('cyclesBtn').addEventListener('click',()=>{cyclesOnly=!cyclesOnly;
+  document.getElementById('cyclesBtn').classList.toggle('on',cyclesOnly);
+  const cyc=new Set();linkEls.forEach(l=>{if(l.is_cycle){cyc.add(l.source);cyc.add(l.target);}});
+  model.nodes.forEach(n=>n.el.classList.toggle('dim',cyclesOnly&&!cyc.has(n.id)));
+  linkEls.forEach(l=>l.el.classList.toggle('dim',cyclesOnly&&!l.is_cycle));});
+
+// ---- Command palette ----
+const pal=document.getElementById('palette'),pin=document.getElementById('pinput'),pres=document.getElementById('presults');
+let palSel=0,palItems=[];
+function openPalette(){pal.classList.add('show');pin.value='';renderPalette('');pin.focus();}
+function closePalette(){pal.classList.remove('show');}
+function renderPalette(q){q=q.toLowerCase();
+  palItems=RAW.nodes.filter(n=>n.id.toLowerCase().includes(q)).slice(0,50);
+  palSel=0;pres.innerHTML=palItems.map((n,i)=>`<div class="res ${i===0?'sel':''}" data-i="${i}">
+    <span>${n.name}</span><span class="sub">${n.module}${n.class?' · '+n.class.split('.').slice(-1)[0]:''}</span></div>`).join('');
+  pres.querySelectorAll('.res').forEach(r=>r.addEventListener('click',()=>choosePalette(+r.dataset.i)));}
+function choosePalette(i){const n=palItems[i];if(!n)return;closePalette();
+  if(level!=='function'){setLevel('function');setTimeout(()=>{select(n.id);centerOn(n.id);},80);}
+  else{select(n.id);centerOn(n.id);}}
+pin.addEventListener('input',()=>renderPalette(pin.value));
+pin.addEventListener('keydown',ev=>{
+  if(ev.key==='ArrowDown'){palSel=Math.min(palSel+1,palItems.length-1);}
+  else if(ev.key==='ArrowUp'){palSel=Math.max(palSel-1,0);}
+  else if(ev.key==='Enter'){choosePalette(palSel);return;}
+  else if(ev.key==='Escape'){closePalette();return;}else return;
+  pres.querySelectorAll('.res').forEach((r,i)=>r.classList.toggle('sel',i===palSel));
+  pres.children[palSel]?.scrollIntoView({block:'nearest'});ev.preventDefault();});
+pal.addEventListener('click',ev=>{if(ev.target===pal)closePalette();});
+
+// ---- Tour ----
+function entryPoints(){
+  const callees=new Set(baseLinks.map(l=>l.target));
+  let eps=baseNodes.filter(n=>n.name==='main'||n.name==='__main__'||
+    (n.decorators||[]).some(d=>/route|get|post|put|delete|task|command|cli/i.test(d)));
+  if(!eps.length) eps=baseNodes.filter(n=>!callees.has(n.id)&&(neighbors(n.id).outs.length>0));
+  eps.sort((a,b)=>neighbors(b.id).outs.length-neighbors(a.id).outs.length);
+  const seq=[];const seen=new Set();
+  for(const ep of eps.slice(0,6)){const stack=[ep.id];
+    while(stack.length&&seq.length<40){const id=stack.shift();if(seen.has(id))continue;seen.add(id);seq.push(id);
+      neighbors(id).outs.forEach(o=>stack.push(o));}}
+  return seq.length?seq:baseNodes.slice(0,20).map(n=>n.id);}
+let tour=[],ti=0;
+function startTour(){tour=entryPoints();ti=0;document.getElementById('tourbar').classList.add('show');
+  if(level!=='function')setLevel('function');setTimeout(showTour,120);}
+function showTour(){if(!tour.length)return;const id=tour[ti];
+  document.getElementById('tStep').textContent=`Step ${ti+1}/${tour.length}: ${id.split('.').slice(-1)[0]}`;
+  select(id);centerOn(id);}
+document.getElementById('tourBtn').addEventListener('click',startTour);
+document.getElementById('tNext').addEventListener('click',()=>{ti=Math.min(ti+1,tour.length-1);showTour();});
+document.getElementById('tPrev').addEventListener('click',()=>{ti=Math.max(ti-1,0);showTour();});
+document.getElementById('tEnd').addEventListener('click',()=>{document.getElementById('tourbar').classList.remove('show');clearHighlight();});
+
+// ---- Minimap ----
+const mm=document.getElementById('minimap');
+function drawMinimap(){if(!model.nodes.length)return;
+  const xs=model.nodes.map(n=>n.x),ys=model.nodes.map(n=>n.y);
+  const minX=Math.min(...xs)-40,maxX=Math.max(...xs)+40,minY=Math.min(...ys)-40,maxY=Math.max(...ys)+40;
+  const gw=maxX-minX||1,gh=maxY-minY||1;mm.setAttribute('viewBox',`${minX} ${minY} ${gw} ${gh}`);
+  let s='';for(const n of model.nodes)s+=`<circle cx="${n.x}" cy="${n.y}" r="${Math.max(gw,gh)/120}" fill="${cssv('--muted')}"/>`;
+  // viewport rect
+  const vx=-view.x/view.k,vy=-view.y/view.k,vw=W/view.k,vh=H/view.k;
+  s+=`<rect class="vp" x="${vx}" y="${vy}" width="${vw}" height="${vh}"/>`;mm.innerHTML=s;}
+
+// ---- Legend ----
+document.getElementById('legend').innerHTML=
+  Object.entries({function:'Function',method:'Method',constructor:'Constructor',property:'Property',async:'Async',classmethod:'Classmethod'})
+  .map(([k,l])=>`<div class="li"><span class="dot" style="background:${cssv(KIND_COLORS[k])}"></span>${l}</div>`).join('')
+  +`<div class="li"><span class="ln" style="border-color:var(--edge-cycle)"></span>Cycle</div>`
+  +`<div class="li"><span class="ln" style="border-color:var(--edge-amb);border-style:dashed"></span>Ambiguous</div>`;
+
+// ---- Theme / export / fit ----
+document.getElementById('theme').addEventListener('click',()=>{
+  const t=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme',t);build();resize();positions();});
+document.getElementById('fit').addEventListener('click',fit);
+document.getElementById('exportBtn').addEventListener('click',()=>{
+  const clone=svg.cloneNode(true);clone.setAttribute('xmlns',SVGNS);
+  const blob=new Blob([new XMLSerializer().serializeToString(clone)],{type:'image/svg+xml'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='gex_levels-architecture.svg';a.click();URL.revokeObjectURL(a.href);});
+
+// ---- Global keys ----
+window.addEventListener('keydown',ev=>{
+  if((ev.metaKey||ev.ctrlKey)&&ev.key.toLowerCase()==='k'){ev.preventDefault();openPalette();}
+  else if(ev.key==='/'&&document.activeElement!==search&&document.activeElement!==pin){ev.preventDefault();search.focus();}
+  else if(ev.key==='Escape'){closePalette();}
+});
+
+// ---- Boot ----
+function boot(){resize();build();layout();setTimeout(()=>{fit();restoreHash();},450);}
+function restoreHash(){if(!location.hash)return;
+  try{const [lv,id]=decodeURIComponent(location.hash.slice(1)).split('|');
+    if(lv&&lv!==level)setLevel(lv);setTimeout(()=>{if(id){select(id);centerOn(id);}},lv!==level?200:0);}catch(e){}}
+window.addEventListener('hashchange',()=>{});
+boot();
+</script>
+</body>
+</html>

@@ -68,103 +68,121 @@ Examples:
     )
     parser.add_argument(
         "--days",
-        metavar="{0,30,90,30,90}",
+        metavar="{30,90,30,90}",
         default="30",
-        help="DTE window(s) to compute: 0DTE, 30, 90, or 30,90 for both. Defaults to 30.",
+        help="DTE window(s) to compute: 30, 90, or 30,90 for both. Defaults to 30.",
+    )
+
+    parser.add_argument(
+        "--0dte",
+        dest="dte_zero",
+        action="store_true",
+        help="Enable separate 0DTE processing logic.",
     )
 
     args = parser.parse_args()
-
-
     symbols = (
         [s.upper() for s in args.symbols] if args.symbols else list(DEFAULT_SYMBOLS)
     )
 
-    try:
-        # reverse=True puts 90 before 30 when both are requested — required so the
-        # Schwab chain cache (keyed only on symbol+date, not max_dte) gets populated
-        # with the wider window first; the 30d pass then reuses and filters it down.
-        windows = sorted({int(d.strip()) for d in args.days.split(",")}, reverse=True)
+    # --- Execution Logic ---
+    if args.dte_zero:
+        # 0DTE is active: ONLY use symbol, ignore everything else
+        print(f"Running 0DTE logic for symbol: {symbols}")
+        # Call your 0DTE function here: run_0dte_pipeline(symbol=args.symbol)
 
-    except ValueError:
-        parser.error(f"--days must be 0, 30, 90, or 30,90 (got: {args.days!r})")
-    if not windows or any(w not in (0, 30, 90) for w in windows):
-        parser.error(f"--days must be 0, 30, 90, or 30,90 (got: {args.days!r})")
+    else:
 
-    if len(symbols) > 1 and (args.index or args.vix):
-        print("Warning: --index and --vix are ignored when multiple symbols are given.")
-        args.index = None
-        args.vix = None
 
-    print(f"GEX Level Calculator -- {len(symbols)} symbol(s)\n")
+        # Standard logic: honor --days, --strike, and any other flags
+        print(f"Running standard logic for symbol: {symbols}")
+        # Call your standard function here: run_standard_pipeline(symbol=args.symbol, days=args.days, strike=args.strike)
 
-    for symbol in symbols:
         try:
-            #print(f"[{symbol}] — downloading options chain...")
-            console.print(
-                f"[bold italic grey42]...Downloading {symbol} options chain...[/bold italic grey42]"
-            )
-            data = {}
-            for w in windows:
+            # reverse=True puts 90 before 30 when both are requested — required so the
+            # Schwab chain cache (keyed only on symbol+date, not max_dte) gets populated
+            # with the wider window first; the 30d pass then reuses and filters it down.
+            windows = sorted({int(d.strip()) for d in args.days.split(",")}, reverse=True)
+
+        except ValueError:
+            parser.error(f"--days must be 0, 30, 90, or 30,90 (got: {args.days!r})")
+        if not windows or any(w not in (0, 30, 90) for w in windows):
+            parser.error(f"--days must be 0, 30, 90, or 30,90 (got: {args.days!r})")
+
+        if len(symbols) > 1 and (args.index or args.vix):
+            print("Warning: --index and --vix are ignored when multiple symbols are given.")
+            args.index = None
+            args.vix = None
+
+        print(f"GEX Level Calculator -- {len(symbols)} symbol(s)\n")
+
+        for symbol in symbols:
+            try:
+                #print(f"[{symbol}] — downloading options chain...")
                 console.print(
-                    f"[bold italic grey42]...Computing {w}-day window for {symbol}...[/bold italic grey42]"
+                    f"[bold italic grey42]...Downloading {symbol} options chain...[/bold italic grey42]"
                 )
-                if w == 0:
-                    # Skip 0, or handle it with custom logic if needed
-                    # data[w] = compute_gex_levels(
-                    #     symbol,
-                    #     max_dte=w,
-                    #     index_ticker_override=args.index,
-                    #     vix_ticker_override=args.vix
+                data = {}
+                for w in windows:
+                    console.print(
+                        f"[bold italic grey42]...Computing {w}-day window for {symbol}...[/bold italic grey42]"
+                    )
+                    if w == 0:
+                        # Skip 0, or handle it with custom logic if needed
+                        # data[w] = compute_gex_levels(
+                        #     symbol,
+                        #     max_dte=w,
+                        #     index_ticker_override=args.index,
+                        #     vix_ticker_override=args.vix
 
-                    continue
+                        continue
 
-                data[w] = compute_gex_levels(
-                    symbol,
-                    max_dte=w,
-                    index_ticker_override=args.index,
-                    vix_ticker_override=args.vix,
-                )
-            #write_gex_file(data.get(30))
-            #write_gex_file(data.get(90))
-            write_gex_file(
-                data30=data.get(30),
-                data90=data.get(90),
-            )
-
-            print_pinescript_block(
-                data30=data.get(30),
-                data90=data.get(90),
-            )
-
-            # Print 30-day first, then 90-day if they exist
-            for w in (30, 90):
-                if w not in data:
-                    continue
-
-                d = data[w]
-                print(
-                    f"  [{w}d] Gamma Flip: {d['gamma_flip']:.2f}  "
-                    f"Call Wall: {d['call_wall']:.2f}  "
-                    f"Put Wall: {d['put_wall']:.2f}  "
-                    f"({d['regime']})"
+                    data[w] = compute_gex_levels(
+                        symbol,
+                        max_dte=w,
+                        index_ticker_override=args.index,
+                        vix_ticker_override=args.vix,
+                    )
+                #write_gex_file(data.get(30))
+                #write_gex_file(data.get(90))
+                write_gex_file(
+                    data30=data.get(30),
+                    data90=data.get(90),
                 )
 
-            print()
+                print_pinescript_block(
+                    data30=data.get(30),
+                    data90=data.get(90),
+                )
 
-        except Exception:
-            import traceback
-            traceback.print_exc()
-        #except Exception as e:
-        #    print(f"  Error: {e}\n")
+                # Print 30-day first, then 90-day if they exist
+                for w in (30, 90):
+                    if w not in data:
+                        continue
 
-    print(f"Done. Files in {OUTPUT_DIR}")
+                    d = data[w]
+                    print(
+                        f"  [{w}d] Gamma Flip: {d['gamma_flip']:.2f}  "
+                        f"Call Wall: {d['call_wall']:.2f}  "
+                        f"Put Wall: {d['put_wall']:.2f}  "
+                        f"({d['regime']})"
+                    )
 
-    # PRINT IT TO THE TERMINAL
-    print("\n--- DEBUG VARIABLES COLLECTED ---")
-    for key, value in hub.variables.items():
-        print(f"{key}: {value}")
-    print("---------------------------------\n")
+                print()
+
+            except Exception:
+                import traceback
+                traceback.print_exc()
+            #except Exception as e:
+            #    print(f"  Error: {e}\n")
+
+        print(f"Done. Files in {OUTPUT_DIR}")
+
+        # PRINT IT TO THE TERMINAL
+        print("\n--- DEBUG VARIABLES COLLECTED ---")
+        for key, value in hub.variables.items():
+            print(f"{key}: {value}")
+        print("---------------------------------\n")
 
 
 if __name__ == "__main__":
