@@ -14,3 +14,15 @@
 # Basically you can join a bunch of random components located all across wherever and gice the, 
 # the same namespace nd the full package will be held in memory and not actually physically
 # exist in one single location
+
+# By adding import statements into the __init__ file it allows you a shorter import statement 
+# in your actual codebase since the subdirectory is a separate package you can use 
+# "from subdir import func"
+
+# It makes things easier to update and is better encapsulation ans refactoring
+
+# The __init__.py only contains import statements from objects in the same package and exports
+# them somthat other packages can import those same objects more doncisely/directlt. 
+# It flattens the modules namespace and places all objects in all subpackages at the same level
+
+# This means that objects / functions in different modules cant have identical names
