@@ -28,3 +28,8 @@ A python library is a building block not a complete application
 
 a source distribution package or sdist is a built in tool in the .tar.bz format for pure python packages where you know the 
 distro env is compatible
+
+wheels contain non python artifacts and are precompiled binaries. you can even use wheels for pure
+python packages and thats what pip does.
+
+source allows user to compile build it whereas wheel is already compiled
