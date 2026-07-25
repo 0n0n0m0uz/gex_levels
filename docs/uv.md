@@ -13,6 +13,14 @@ uv is a tool that combines, pip, virtualenv in a ground up rewrite written in ru
 ## uv tool
 used to install globally scoped tools to manage and build locally scoped projects 
 
+## pyproject.toml
+
+this file is how uv identifies the root directory of the project and contains project metadata and 3 possible sections,
+[build-system] - basically required
+a build backend converts the python source code files into a distributable package
+
+[project]
+[tool]
 
 ## virtualenv
 virtualenv creates isolated python environments for each project to avoid dependency 
