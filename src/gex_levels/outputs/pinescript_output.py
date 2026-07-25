@@ -2,7 +2,63 @@ import os
 import sys
 
 
-from gex_levels.gex.gex_calculations import derive_profile_levels
+def derive_profile_levels(data):
+    """Extract key levels, net GEX string, and top 5 nodes from a data dict.
+
+    Wall zones (cw_low/cw_high, pw_low/pw_high) now come directly from
+    compute_gex_levels via compute_wall_zones — no longer derived post-hoc.
+    """
+    cw = data["call_wall"]
+    pw = data["put_wall"]
+    profile = data.get("gex_profile", [])
+
+    # Wall zones pre-computed in compute_gex_levels
+    cw_low = data.get("call_wall_low", cw)
+    cw_high = data.get("call_wall_high", cw)
+    pw_low = data.get("put_wall_low", pw)
+    pw_high = data.get("put_wall_high", pw)
+
+    # Key levels: 2nd and 3rd strongest call/put gamma strikes
+    call_nodes = sorted(
+        [(p, g) for p, g in profile if g > 0], key=lambda x: x[1], reverse=True
+    )
+    put_nodes = sorted(
+        [(p, g) for p, g in profile if g < 0], key=lambda x: abs(x[1]), reverse=True
+    )
+
+    def next_levels(nodes, wall, n=2):
+        others = [p for p, _ in nodes if round(p) != round(wall)]
+        return others[:n] + [0.0] * max(0, n - len(others))
+
+    kc2, kc3 = next_levels(call_nodes, cw)
+    kp2, kp3 = next_levels(put_nodes, pw)
+
+    net_gex = data["net_gex"]
+    abs_gex = abs(net_gex)
+    sign_str = "+" if net_gex >= 0 else "-"
+    if abs_gex >= 1e9:
+        net_gex_str = f'"{sign_str}{abs_gex / 1e9:.2f}B"'
+    elif abs_gex >= 1e6:
+        net_gex_str = f'"{sign_str}{abs_gex / 1e6:.1f}M"'
+    else:
+        net_gex_str = f'"{sign_str}{abs_gex / 1e3:.0f}K"'
+
+    top5 = sorted(profile, key=lambda x: abs(x[1]), reverse=True)[:5]
+    while len(top5) < 5:
+        top5.append((0.0, 0))
+
+    return dict(
+        kc2=kc2,
+        kc3=kc3,
+        kp2=kp2,
+        kp3=kp3,
+        cw_low=cw_low,
+        cw_high=cw_high,
+        pw_low=pw_low,
+        pw_high=pw_high,
+        net_gex_str=net_gex_str,
+        top5=top5,
+    )
 
 
 def print_pinescript_block(data30=None, data90=None):
