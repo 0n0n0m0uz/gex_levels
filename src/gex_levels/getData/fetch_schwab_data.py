@@ -1,5 +1,6 @@
 import os
 import sys
+import urllib.parse
 from datetime import datetime, timedelta
 import pandas as pd
 
@@ -12,6 +13,21 @@ sys.path.append(str(BASE_DIR))
 
 # Now this will work because the root is in sys.path
 from debug.debug_hub import hub
+
+
+def fetch_schwab_spot(schwab_symbol):
+    """Live last price for `schwab_symbol` via Schwab's single-symbol quote
+    endpoint (GET /{symbol}/quotes) — independent of the chains endpoint, no
+    expiration-date lookup needed. Works for both direct-index symbols
+    ($SPX, $NDX, $VIX) and literal equity/ETF tickers (SPY, AAPL, ...).
+    """
+    encoded = urllib.parse.quote(schwab_symbol, safe="")
+    data = schwab_get(f"https://api.schwabapi.com/marketdata/v1/{encoded}/quotes", {})
+    quote = (data.get(schwab_symbol) or {}).get("quote") or {}
+    spot = quote.get("lastPrice")
+    if not spot:
+        raise ValueError(f"Schwab: no lastPrice for {schwab_symbol}")
+    return float(spot)
 
 
 def fetch_schwab_chain(schwab_symbol, today_str, max_dte):
@@ -29,11 +45,11 @@ def fetch_schwab_chain(schwab_symbol, today_str, max_dte):
     small enough to avoid the size limit, and each with the complete listed
     strike range for that expiration.
 
-    Returns (spot, raw) where raw matches _download_options' format:
-    a list of (exp_str, calls_df, puts_df). For direct index symbols the
-    strikes are already in index space (no ETF conversion needed).
+    Returns raw, matching fetch_yfinance_data.fetch_yfinance_chain's format: a list of
+    (exp_str, calls_df, puts_df). For direct index symbols the strikes are
+    already in index space (no ETF conversion needed). Spot is not returned
+    here — see fetch_schwab_spot() for that.
     """
-
 
     to_date = (datetime.now() + timedelta(days=max_dte)).strftime("%Y-%m-%d")
 
@@ -46,24 +62,6 @@ def fetch_schwab_chain(schwab_symbol, today_str, max_dte):
             "strikeCount": 1,
         },
     )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    spot = enum_data.get("underlyingPrice")
-    if not spot:
-        raise ValueError(f"Schwab: no underlyingPrice for {schwab_symbol}")
 
     exp_dates = sorted(
         {
@@ -91,7 +89,7 @@ def fetch_schwab_chain(schwab_symbol, today_str, max_dte):
         for exp, v in sorted(by_exp.items())
         if v["call"] and v["put"]
     ]
-    return float(spot), raw
+    return raw
 
 
 def fetch_schwab_quote_close(symbol):

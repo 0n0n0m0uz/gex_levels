@@ -15,12 +15,13 @@ from gex_levels.config import (
     DTE_TAU_90,
 )
 from gex_levels.getData.fetch_spot import (
-    get_spot_and_chain,
+    get_spot,
+    get_chain,
+    collect_chain,
     get_risk_free_rate,
     get_vol_close,
     get_index_ratio,
 )
-from gex_levels.getData.fetch_yfinance_data import collect_chain
 from gex_levels.gex.gex_calculations import (
     compute_per_strike_gex,
     compute_net_dex,
@@ -46,10 +47,8 @@ def compute_gex_levels(
 ):
     """Full GEX computation for one symbol.
 
-    Whatever you pass as `symbol` is what gets fetched — SPX/NDX/VIX fetch the
-    real index chain directly from Schwab; any other ticker (SPY, QQQ, AAPL,
-    ...) fetches that literal ticker's own chain via Schwab, falling back to
-    yfinance only for that same symbol (never substituting a different one).
+Accepts all symbols including Indices or Stocks.via Schwab, falling back to
+Index accepts either $SPX / SPX, $NDX / NDX, or $VIX / VIX
 
     index_ticker_override: yfinance ticker for manual ratio conversion, for
                            tickers with no native Schwab index chain
@@ -63,7 +62,9 @@ def compute_gex_levels(
 
     today_str = datetime.now().strftime("%Y-%m-%d")
 
-    spot, raw, is_direct_index = get_spot_and_chain(symbol, today_str, max_dte)
+    spot, is_direct_index = get_spot(symbol, today_str)
+    # get_chain has the logic to get the chain from either schwab or yfinance
+    raw = get_chain(symbol, today_str, max_dte, is_direct_index)
 ##################################################################
     console.print(Rule("[bold green]Market Data[/bold green]"))
     console.print()
