@@ -1,16 +1,20 @@
 """
 gex_daily.py - Daily GEX level calculator and shared library
+
+The Orchestration file main.py initiates 3 tasks:
+1. Compute Gex Levels
+2. Output Data to a Json file
+3. Output data to the terminal for convenience and for pasting into pinescript
+
 """
 
 # Import Submodules
+from gex_levels.cli.cli import parse_args
 from gex_levels.config import DEFAULT_SYMBOLS, OUTPUT_DIR
 from gex_levels.gex.gex_compute import compute_gex_levels
 # from gex_levels.gex.gex_compute_0dte import ....
 from gex_levels.outputs.output_gex_file import write_gex_file
 from gex_levels.outputs.pinescript_output import print_pinescript_block
-
-## Standard Library Packages
-import argparse
 
 # External Modules
 from rich.console import Console
@@ -29,63 +33,15 @@ load_dotenv()
 
 def main():
 
-    parser = argparse.ArgumentParser(
-        description="Compute daily GEX levels for any symbol — index (direct Schwab "
-        "chain) or equity/ETF (Schwab, yfinance fallback). Whatever you "
-        "type is what gets fetched, no silent substitution.",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  python gex_daily.py                    # SPX + NDX (default)
-  python gex_daily.py SPX                # real $SPX index chain, direct from Schwab
-  python gex_daily.py AAPL               # any stock, own price space
-  python gex_daily.py IWM --index ^RUT   # manual ratio conversion for tickers with 
-  python gex_daily.py SPX NDX VIX SPY    # multiple symbols in one run
-  python gex_daily.py SPX --days 90      # 90-day window only
-  python gex_daily.py SPX --days 30,90   # both windows in one run
-        """,
-    )
-    parser.add_argument(
-        "symbols",
-        nargs="*",
-        metavar="SYMBOL",
-        help="One or more symbols (e.g. SPX NDX VIX SPY QQQ AAPL). "
-        "Defaults to SPX and NDX when omitted.",
-    )
-    parser.add_argument(
-        "--index",
-        metavar="TICKER",
-        default=None,
-        help="Index ticker for price-space conversion (e.g. ^RUT). "
-        "Only applies when a single symbol is given; ignored for multi-symbol runs.",
-    )
-    parser.add_argument(
-        "--vix",
-        metavar="TICKER",
-        default=None,
-        help="Volatility index ticker for expected-move data (e.g. ^RVX). "
-        "Only applies when a single symbol is given.",
-    )
-    parser.add_argument(
-        "--days",
-        metavar="{30,90,30,90}",
-        default="30",
-        help="DTE window(s) to compute: 30, 90, or 30,90 for both. Defaults to 30.",
-    )
+    # Fires up the CLI plumbing
+    args, windows = parse_args()
 
-    parser.add_argument(
-        "--0dte",
-        dest="dte_zero",
-        action="store_true",
-        help="Enable separate 0DTE processing logic.",
-    )
-
-    args = parser.parse_args()
+    # Gets the Symbols passed to CLI
     symbols = (
         [s.upper() for s in args.symbols] if args.symbols else list(DEFAULT_SYMBOLS)
     )
 
-    # --- Execution Logic ---
+    # --- Execution Logic to split into 0DTE vs Daily track---
     if args.dte_zero:
         # 0DTE is active: ONLY use symbol, ignore everything else
         print(f"Running 0DTE logic for symbol: {symbols}")
@@ -97,17 +53,6 @@ Examples:
         # Standard logic: honor --days, --strike, and any other flags
         print(f"Running standard logic for symbol: {symbols}")
         # Call your standard function here: run_standard_pipeline(symbol=args.symbol, days=args.days, strike=args.strike)
-
-        try:
-            # reverse=True puts 90 before 30 when both are requested — required so the
-            # Schwab chain cache (keyed only on symbol+date, not max_dte) gets populated
-            # with the wider window first; the 30d pass then reuses and filters it down.
-            windows = sorted({int(d.strip()) for d in args.days.split(",")}, reverse=True)
-
-        except ValueError:
-            parser.error(f"--days must be 0, 30, 90, or 30,90 (got: {args.days!r})")
-        if not windows or any(w not in (0, 30, 90) for w in windows):
-            parser.error(f"--days must be 0, 30, 90, or 30,90 (got: {args.days!r})")
 
         if len(symbols) > 1 and (args.index or args.vix):
             print("Warning: --index and --vix are ignored when multiple symbols are given.")
@@ -136,20 +81,20 @@ Examples:
                         #     vix_ticker_override=args.vix
 
                         continue
-
+                    # Task 1
                     data[w] = compute_gex_levels(
                         symbol,
                         max_dte=w,
                         index_ticker_override=args.index,
                         vix_ticker_override=args.vix,
                     )
-                #write_gex_file(data.get(30))
-                #write_gex_file(data.get(90))
+
+                # Task 2
                 write_gex_file(
                     data30=data.get(30),
                     data90=data.get(90),
                 )
-
+                # Task 3
                 print_pinescript_block(
                     data30=data.get(30),
                     data90=data.get(90),
