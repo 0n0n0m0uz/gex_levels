@@ -76,8 +76,8 @@ def _get_cached_or_schwab_spot(symbol, today_str, is_direct_index):
 def _get_cached_or_schwab_chain(symbol, today_str, max_dte, is_direct_index):
     """Try the shared chain cache, then Schwab's chains endpoint —
     independent of spot-fetching. Populates _CHAIN_CACHE on a fresh fetch.
-    Returns raw, or None if Schwab fetch failed and the yfinance fallback is
-    needed.
+    Returns raw_chain, or None if Schwab fetch failed and the yfinance
+    fallback is needed.
     """
     schwab_symbol = SCHWAB_DIRECT_INDEX.get(symbol, symbol)
     cache_key = (symbol, today_str)
@@ -96,9 +96,9 @@ def _get_cached_or_schwab_chain(symbol, today_str, max_dte, is_direct_index):
             f"[bold italic grey42]Fetching {schwab_symbol} chain from Schwab[/bold italic grey42]"
         )
 
-        raw = fetch_schwab_chain(schwab_symbol, today_str, max_dte)
-        _CHAIN_CACHE[cache_key] = raw
-        return raw
+        raw_chain = fetch_schwab_chain(schwab_symbol, today_str, max_dte)
+        _CHAIN_CACHE[cache_key] = raw_chain
+        return raw_chain
 
     except Exception as e:
         if is_direct_index:
@@ -133,18 +133,18 @@ def get_chain(symbol, today_str, max_dte, is_direct_index):
     """Resolve the raw chain for `symbol`, trying cache -> Schwab ->
     yfinance in that order. Independent of get_spot().
 
-    Returns raw — a list of (exp_str, calls_df, puts_df) tuples — the same
-    shape whether it came from Schwab or yfinance — ready to pass straight
-    into collect_chain().
+    Returns raw_chain — a list of (exp_str, calls_df, puts_df) tuples — the
+    same shape whether it came from Schwab or yfinance — ready to pass
+    straight into collect_chain().
     """
-    raw = _get_cached_or_schwab_chain(symbol, today_str, max_dte, is_direct_index)
-    if raw is None:
-        raw = fetch_yfinance_chain(symbol, today_str)
+    raw_chain = _get_cached_or_schwab_chain(symbol, today_str, max_dte, is_direct_index)
+    if raw_chain is None:
+        raw_chain = fetch_yfinance_chain(symbol, today_str)
 
-    return raw
+    return raw_chain
 
 
-def collect_chain(raw, spot, max_dte, dte_tau=None):
+def collect_chain(raw_chain, spot, max_dte, dte_tau=None):
     """
     This is the second step where business logic filtering is applied to the data and the raw native format is converted
     to separate numpy arrays for more efficient transformation and calculation of the Black Scholes formulas
@@ -168,7 +168,7 @@ def collect_chain(raw, spot, max_dte, dte_tau=None):
     calls_list, puts_list = [], []
     num_expirations = 0
 
-    for exp_str, calls_df, puts_df in raw:
+    for exp_str, calls_df, puts_df in raw_chain:
         exp_date = datetime.strptime(exp_str, "%Y-%m-%d")
         dte = (exp_date - now).days
         if dte < 0 or dte > max_dte:
@@ -213,7 +213,7 @@ def get_risk_free_rate():
         #console.print(f"  {'Risk-Free Rate':<22} {sofr:.2%} (SOFR)")
         return sofr, rf_rate_msg
     except Exception:
-        rf_rate_msg = (f"  {'Risk-Free Rate':<22}{RISK_FREE_RATE:.4f} (fallback — SOFR unavailable)")
+        rf_rate_msg = (f"  {'Risk-Free Rate':<22}{RISK_FREE_RATE:.2%} (fallback — SOFR unavailable)")
         #console.print(f"  {'Risk-Free Rate':<22}{RISK_FREE_RATE:.4f} (fallback — SOFR unavailable)")
         return RISK_FREE_RATE, rf_rate_msg
 
