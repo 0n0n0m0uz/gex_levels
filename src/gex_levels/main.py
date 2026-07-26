@@ -1,10 +1,11 @@
 """
 gex_daily.py - Daily GEX level calculator and shared library
 
-The Orchestration file main.py initiates 3 tasks:
+The Orchestration file main.py initiates 4 tasks:
 1. Compute Gex Levels
 2. Output Data to a Json file
-3. Output data to the terminal for convenience and for pasting into pinescript
+3. Output data to the terminal for convenience and for pasting into Pinescript
+4. Checks if the debug flag is turned T/F in debug.py and prints extra verbose info to terminal
 
 """
 
@@ -15,15 +16,13 @@ from gex_levels.gex.gex_compute import compute_gex_levels
 # from gex_levels.gex.gex_compute_0dte import ....
 from gex_levels.outputs.output_gex_file import write_gex_file
 from gex_levels.outputs.pinescript_output import print_pinescript_block
+from debug.debug_hub import hub
 
 # External Modules
 from rich.console import Console
 #from rich.rule import Rule
-
 console = Console(force_terminal=True)
 
-
-from debug.debug_hub import hub
 
 # Setup of .env file to hold API keys.  Make sure to add to .gitignore and remove from all scripts so they are not on a public forum.
 from dotenv import load_dotenv
@@ -123,11 +122,8 @@ def main():
 
         print(f"Done. Files in {OUTPUT_DIR}")
 
-        # PRINT IT TO THE TERMINAL
-        print("\n--- DEBUG VARIABLES COLLECTED ---")
-        for key, value in hub.variables.items():
-            print(f"{key}: {value}")
-        print("---------------------------------\n")
+        # Task 4 - Turn Debug printing OFF / ON in debug_hub.py
+        hub.dump()
 
 
 if __name__ == "__main__":

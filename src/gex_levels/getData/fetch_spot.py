@@ -152,7 +152,7 @@ def collect_chain(raw, spot, max_dte, dte_tau=None):
     Build DTE-weighted options arrays from already-resolved chain data (see
     get_chain() above for how `raw` is obtained).
 
-    Returns (calls, puts, exp_count) where each array is Nx4:
+    Returns (calls, puts, num_expirations) where each array is Nx4:
     [strike, weighted_OI, T_years, implied_vol]
 
     Fixes vs original:
@@ -166,7 +166,7 @@ def collect_chain(raw, spot, max_dte, dte_tau=None):
 
     now = datetime.now()
     calls_list, puts_list = [], []
-    exp_count = 0
+    num_expirations = 0
 
     for exp_str, calls_df, puts_df in raw:
         exp_date = datetime.strptime(exp_str, "%Y-%m-%d")
@@ -175,7 +175,7 @@ def collect_chain(raw, spot, max_dte, dte_tau=None):
             continue
         T = max(dte, 0.5) / 365.0  # floor at half-day to keep gamma finite
         dte_weight = np.exp(-dte / dte_tau)
-        exp_count += 1
+        num_expirations += 1
 
         for df, out_list in [(calls_df, calls_list), (puts_df, puts_list)]:
             mask = (
@@ -197,7 +197,7 @@ def collect_chain(raw, spot, max_dte, dte_tau=None):
 
     calls = np.array(calls_list) if calls_list else np.empty((0, 4))
     puts = np.array(puts_list) if puts_list else np.empty((0, 4))
-    return calls, puts, exp_count
+    return calls, puts, num_expirations
 
 
 def get_risk_free_rate():
@@ -209,13 +209,13 @@ def get_risk_free_rate():
             "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SOFR", timeout=10
         )
         sofr = float(r.text.strip().split("\n")[-1].split(",")[1]) / 100
-        console.print(f"  {'Risk-Free Rate':<22} {sofr:.2%} (SOFR)")
-        return sofr
+        rf_rate_msg = (f"  {'Risk-Free Rate':<22} {sofr:.2%} (SOFR)")
+        #console.print(f"  {'Risk-Free Rate':<22} {sofr:.2%} (SOFR)")
+        return sofr, rf_rate_msg
     except Exception:
-        console.print(
-            f"  {'Risk-Free Rate':<22}{RISK_FREE_RATE:.4f} (fallback — SOFR unavailable)"
-        )
-        return RISK_FREE_RATE
+        rf_rate_msg = (f"  {'Risk-Free Rate':<22}{RISK_FREE_RATE:.4f} (fallback — SOFR unavailable)")
+        #console.print(f"  {'Risk-Free Rate':<22}{RISK_FREE_RATE:.4f} (fallback — SOFR unavailable)")
+        return RISK_FREE_RATE, rf_rate_msg
 
 
 def get_vol_close(symbol, is_direct_index, vix_ticker_override=None):

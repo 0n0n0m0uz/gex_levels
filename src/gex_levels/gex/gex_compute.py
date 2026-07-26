@@ -47,42 +47,58 @@ def compute_gex_levels(
 ):
     """Full GEX computation for one symbol.
 
-Accepts all symbols including Indices or Stocks.via Schwab, falling back to
-Index accepts either $SPX / SPX, $NDX / NDX, or $VIX / VIX
+    This is the primary worker / task function initiated by main.py
 
-    index_ticker_override: yfinance ticker for manual ratio conversion, for
-                           tickers with no native Schwab index chain
-                           (e.g. '^RUT' for IWM). Ignored for SPX/NDX/VIX,
-                           which are already in index space.
-    vix_ticker_override:   yfinance ticker for vol index close (e.g. '^RVX'),
-                           manual opt-in for non-index symbols.
+    Accepts all symbols including Indices or Stocks.  It first checks Schwab falling back to yfinance
+    if there are issues w Schwab.
+
+    Index accepts either $SPX / SPX, $NDX / NDX, or $VIX / VIX
+
+        index_ticker_override: yfinance ticker for manual ratio conversion, for
+                               tickers with no native Schwab index chain
+                               (e.g. '^RUT' for IWM). Ignored for SPX/NDX/VIX,
+                               which are already in index space.
+        vix_ticker_override:   yfinance ticker for vol index close (e.g. '^RVX'),
+                               manual opt-in for non-index symbols.
     """
+
     ####### Basic Setup of Symbol along with spot price #######################################################################################################################################
-    symbol = symbol.upper()
+
+    # symbol = symbol.upper()
 
     today_str = datetime.now().strftime("%Y-%m-%d")
-
+    # is_direct_index is needed because yfinance doesnt use the same $SPX format as Schwab requires
     spot, is_direct_index = get_spot(symbol, today_str)
+
+    raw_chain = get_chain(symbol, today_str, max_dte, is_direct_index)
     # get_chain has the logic to get the chain from either schwab or yfinance
-    raw = get_chain(symbol, today_str, max_dte, is_direct_index)
-##################################################################
-    console.print(Rule("[bold green]Market Data[/bold green]"))
-    console.print()
-    console.print(f"  {'Spot':<22} ${spot:.2f}")
+
+    ##############################################################
+
+    # console.print(Rule("[bold green]Market Data[/bold green]"))
+    # console.print()
+    # console.print(f"  {'Spot':<22} ${spot:.2f}")
+    
 #####################################################################
 
     #### Fetch live risk-free rate from SOFR (Fed FRED API)  ########################################################################################
-    risk_free_rate = get_risk_free_rate()
+    risk_free_rate, rf_rate_msg = get_risk_free_rate()
 
     ####  Raw Data is Downloaded, filtered according to Business Logic and then separated into Numpy Arrays for more efficient processing ####################################################################################################################################
     tau = DTE_TAU_30 if max_dte <= 30 else DTE_TAU_90
 
-    calls, puts, exp_count = collect_chain(raw, spot, max_dte, dte_tau=tau)
+    calls, puts, num_expirations = collect_chain(raw_chain, spot, max_dte, dte_tau=tau)
+
 ##########################################################################
-    console.print(f"  {'Expirations':<22} {exp_count}")
-    console.print(f"  {'Calls':<22} {len(calls):,}")
-    console.print(f"  {'Puts':<22} {len(puts):,}")
-    console.print(f"  {'Tau':<22} {tau:.0f}-days")
+
+    # console.print(Rule("[bold green]Market Data[/bold green]"))
+    # console.print()
+    # console.print(f"  {'Spot':<22} ${spot:.2f}")
+    # console.print(f"  {'Expirations':<22} {num_expirations}")
+    # console.print(f"  {'Calls':<22} {len(calls):,}")
+    # console.print(f"  {'Puts':<22} {len(puts):,}")
+    # console.print(f"  {'Tau':<22} {tau:.0f}-days")
+    
 ###########################################################################
 
 
@@ -126,8 +142,8 @@ Index accepts either $SPX / SPX, $NDX / NDX, or $VIX / VIX
         )
         put_wall_low = put_wall_high = put_wall
 
-    console.print(Rule("[bold magenta]Dealer Positioning[/bold magenta]"))
-    console.print()
+    # console.print(Rule("[bold magenta]Dealer Positioning[/bold magenta]"))
+    # console.print()
 
     # Net GEX and regime
     net_gex = sum(call_gex.values()) + sum(put_gex.values())
@@ -153,13 +169,13 @@ Index accepts either $SPX / SPX, $NDX / NDX, or $VIX / VIX
 
 ##########################################################################
 
-    console.print(
-        f"  {'Net DEX':<22} "
-        f"[{dex_color}]${net_dex:,.0f}[/{dex_color}] "
-        f"({dex_regime})"
-    )
-    console.print(f"  {'CPR Raw':<22} {cpr_raw:.3f}")
-    console.print(f"  {'CPR Notional':<22} {cpr_notional:.3f}")
+    # console.print(
+    #     f"  {'Net DEX':<22} "
+    #     f"[{dex_color}]${net_dex:,.0f}[/{dex_color}] "
+    #     f"({dex_regime})"
+    # )
+    # console.print(f"  {'CPR Raw':<22} {cpr_raw:.3f}")
+    # console.print(f"  {'CPR Notional':<22} {cpr_notional:.3f}")
 ###########################################################################
 
     # --- HVL and Vol Trigger (ticker price space) ---
@@ -176,12 +192,34 @@ Index accepts either $SPX / SPX, $NDX / NDX, or $VIX / VIX
     # skew_alpha = 0.7
 
 ######################################################################################
-    console.print()
-    console.print(Rule("[bold blue]Volatility[/bold blue]"))
-    console.print()
-    console.print(f"  {'ATM Skew Slope':<22} {skew_slope:.5f}")
-    console.print(f"  {'R²':<22} {skew_r2:.3f}")
-    console.print(f"  {'Alpha':<22} {skew_alpha:.2f}")
+
+    # console.print(Rule("[bold green]Market Data[/bold green]"))
+    # console.print()
+    # console.print(f"  {'Spot':<22} ${spot:.2f}")
+    # console.print(f"  {rf_rate_msg}") # This has a different format because the rate is calculated in the
+    # # Module depending on exception logic
+    # console.print(f"  {'Expirations':<22} {num_expirations}")
+    # console.print(f"  {'Calls':<22} {len(calls):,}")
+    # console.print(f"  {'Puts':<22} {len(puts):,}")
+    # console.print(f"  {'Tau':<22} {tau:.0f}-days")
+    #
+    # console.print(Rule("[bold magenta]Dealer Positioning[/bold magenta]"))
+    # console.print()
+    # console.print(
+    #     f"  {'Net DEX':<22} "
+    #     f"[{dex_color}]${net_dex:,.0f}[/{dex_color}] "
+    #     f"({dex_regime})"
+    # )
+    # console.print(f"  {'CPR Raw':<22} {cpr_raw:.3f}")
+    # console.print(f"  {'CPR Notional':<22} {cpr_notional:.3f}")
+    #
+    #
+    # console.print()
+    # console.print(Rule("[bold blue]Volatility[/bold blue]"))
+    # console.print()
+    # console.print(f"  {'ATM Skew Slope':<22} {skew_slope:.5f}")
+    # console.print(f"  {'R²':<22} {skew_r2:.3f}")
+    # console.print(f"  {'Alpha':<22} {skew_alpha:.2f}")
 ########################################################################################
     #print(f"  Computing gamma flip...")
 
@@ -201,7 +239,35 @@ Index accepts either $SPX / SPX, $NDX / NDX, or $VIX / VIX
 
 
 ##### Descending Sorted Gex Levels #######################################################################
+    ######################################################################################
 
+    console.print(Rule("[bold green]Market Data[/bold green]"))
+    console.print()
+    console.print(f"  {'Spot':<22} ${spot:.2f}")
+    console.print(f"  {rf_rate_msg}")  # This has a different format because the rate is calculated in the
+    # Module depending on exception logic
+    console.print(f"  {'Expirations':<22} {num_expirations}")
+    console.print(f"  {'Calls':<22} {len(calls):,}")
+    console.print(f"  {'Puts':<22} {len(puts):,}")
+    console.print(f"  {'Tau':<22} {tau:.0f}-days")
+
+    console.print(Rule("[bold magenta]Dealer Positioning[/bold magenta]"))
+    console.print()
+    console.print(
+        f"  {'Net DEX':<22} "
+        f"[{dex_color}]${net_dex:,.0f}[/{dex_color}] "
+        f"({dex_regime})"
+    )
+    console.print(f"  {'CPR Raw':<22} {cpr_raw:.3f}")
+    console.print(f"  {'CPR Notional':<22} {cpr_notional:.3f}")
+
+    console.print()
+    console.print(Rule("[bold blue]Volatility[/bold blue]"))
+    console.print()
+    console.print(f"  {'ATM Skew Slope':<22} {skew_slope:.5f}")
+    console.print(f"  {'R²':<22} {skew_r2:.3f}")
+    console.print(f"  {'Alpha':<22} {skew_alpha:.2f}")
+    ########################################################################################
     from rich.panel import Panel
     from rich import box
 

@@ -26,5 +26,13 @@ class DebugHub:
 
         return table
 
+    def dump(self):
+        if not self.ENABLED:
+            return
+        print("\n--- DEBUG VARIABLES COLLECTED ---")
+        for key, value in self.variables.items():
+            print(f"{key}: {value}")
+        print("---------------------------------\n")
+
 # Global singleton instance
 hub = DebugHub()
