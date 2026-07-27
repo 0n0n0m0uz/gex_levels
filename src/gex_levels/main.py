@@ -53,10 +53,9 @@ def main():
         print(f"Running standard logic for symbol: {symbols}")
         # Call your standard function here: run_standard_pipeline(symbol=args.symbol, days=args.days, strike=args.strike)
 
-        if len(symbols) > 1 and (args.index or args.vix):
-            print("Warning: --index and --vix are ignored when multiple symbols are given.")
+        if len(symbols) > 1 and args.index:
+            print("Warning: --index is ignored when multiple symbols are given.")
             args.index = None
-            args.vix = None
 
         print(f"GEX Level Calculator -- {len(symbols)} symbol(s)\n")
 
@@ -77,7 +76,6 @@ def main():
                         #     symbol,
                         #     max_dte=w,
                         #     index_ticker_override=args.index,
-                        #     vix_ticker_override=args.vix
 
                         continue
                     # Task 1
@@ -85,7 +83,6 @@ def main():
                         symbol,
                         max_dte=w,
                         index_ticker_override=args.index,
-                        vix_ticker_override=args.vix,
                     )
 
                 # Task 2

@@ -12,7 +12,6 @@ from rich.console import Console
 from gex_levels.config import (
     RISK_FREE_RATE,
     SCHWAB_DIRECT_INDEX,
-    SCHWAB_VOL_SYMBOL,
     DTE_TAU_30,
     DTE_TAU_90,
     _CHAIN_CACHE,
@@ -22,7 +21,6 @@ from gex_levels.config import (
 from gex_levels.getData.fetch_schwab_data import (
     fetch_schwab_spot,
     fetch_schwab_chain,
-    fetch_schwab_quote_close,
 )
 from gex_levels.getData.fetch_yfinance_data import (
     fetch_yfinance_spot,
@@ -31,12 +29,34 @@ from gex_levels.getData.fetch_yfinance_data import (
 
 console = Console(force_terminal=True)
 
+def get_risk_free_rate():
+
+    """Live risk-free rate from SOFR (Fed FRED API), falling back to the default (placed in an ENV VAR)
+    if the fetch fails.
+    """
+
+    try:
+        r = requests.get(
+            "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SOFR", timeout=10
+        )
+        sofr = float(r.text.strip().split("\n")[-1].split(",")[1]) / 100
+        rf_rate_msg = (f"  {'Risk-Free Rate':<22} {sofr:.2%} (SOFR)")
+        #console.print(f"  {'Risk-Free Rate':<22} {sofr:.2%} (SOFR)")
+        return sofr, rf_rate_msg
+    except Exception:
+        rf_rate_msg = (f"  {'Risk-Free Rate':<22}{RISK_FREE_RATE:.2%} (fallback — SOFR unavailable)")
+        #console.print(f"  {'Risk-Free Rate':<22}{RISK_FREE_RATE:.4f} (fallback — SOFR unavailable)")
+        return RISK_FREE_RATE, rf_rate_msg
+
 
 def _get_cached_or_schwab_spot(symbol, today_str, is_direct_index):
+
     """Try the shared spot cache, then Schwab's single-symbol quote endpoint
-    (independent of chain-fetching). Populates _SCHWAB_SPOT_CACHE on a fresh
-    fetch. Returns spot, or None if Schwab fetch failed and the yfinance
-    fallback is needed.
+    (independent of chain-fetching).
+
+    Populates _SCHWAB_SPOT_CACHE on a fresh fetch.
+
+    Returns spot, or None if Schwab fetch failed and the yfinance fallback is needed.
     """
     schwab_symbol = SCHWAB_DIRECT_INDEX.get(symbol, symbol)
     cache_key = (symbol, today_str)
@@ -74,10 +94,12 @@ def _get_cached_or_schwab_spot(symbol, today_str, is_direct_index):
 
 
 def _get_cached_or_schwab_chain(symbol, today_str, max_dte, is_direct_index):
-    """Try the shared chain cache, then Schwab's chains endpoint —
-    independent of spot-fetching. Populates _CHAIN_CACHE on a fresh fetch.
-    Returns raw_chain, or None if Schwab fetch failed and the yfinance
-    fallback is needed.
+
+    """Try the shared chain cache, then Schwab's chains endpoint — independent of spot-fetching.
+
+    Populates _CHAIN_CACHE on a fresh fetch.
+
+    Returns raw_chain, or None if Schwab fetch failed and the yfinance fallback is needed.
     """
     schwab_symbol = SCHWAB_DIRECT_INDEX.get(symbol, symbol)
     cache_key = (symbol, today_str)
@@ -114,6 +136,7 @@ def _get_cached_or_schwab_chain(symbol, today_str, max_dte, is_direct_index):
 
 
 def get_spot(symbol, today_str):
+
     """Resolve spot for `symbol`, trying cache -> Schwab -> yfinance in that
     order. Independent of get_chain() — no shared state between the two
     beyond each having its own cache.
@@ -130,13 +153,15 @@ def get_spot(symbol, today_str):
 
 
 def get_chain(symbol, today_str, max_dte, is_direct_index):
-    """Resolve the raw chain for `symbol`, trying cache -> Schwab ->
-    yfinance in that order. Independent of get_spot().
 
-    Returns raw_chain — a list of (exp_str, calls_df, puts_df) tuples — the
-    same shape whether it came from Schwab or yfinance — ready to pass
-    straight into collect_chain().
+    """Resolve the raw chain for `symbol`, trying cache -> Schwab -> yfinance in that order.
+
+    Independent of get_spot().
+
+    Returns raw_chain — a list of (exp_str, calls_df, puts_df) tuples — the same shape whether
+    it came from Schwab or yfinance — ready to pass straight into collect_chain().
     """
+
     raw_chain = _get_cached_or_schwab_chain(symbol, today_str, max_dte, is_direct_index)
     if raw_chain is None:
         raw_chain = fetch_yfinance_chain(symbol, today_str)
@@ -145,15 +170,15 @@ def get_chain(symbol, today_str, max_dte, is_direct_index):
 
 
 def collect_chain(raw_chain, spot, max_dte, dte_tau=None):
+
     """
-    This is the second step where business logic filtering is applied to the data and the raw native format is converted
-    to separate numpy arrays for more efficient transformation and calculation of the Black Scholes formulas
+    2nd step where biz logic (filtering) is applied to the raw native data format and results are
+    converted to separate np.arrays for more efficient transformation and calcs of Black Scholes
 
     Build DTE-weighted options arrays from already-resolved chain data (see
-    get_chain() above for how `raw` is obtained).
+    get_chain() above for how `raw_chain` is obtained).
 
-    Returns (calls, puts, num_expirations) where each array is Nx4:
-    [strike, weighted_OI, T_years, implied_vol]
+    Returns np.arrays (calls, puts, num_expirations) w 4 cols: [strike, weighted_OI, T_years, implied_vol]
 
     Fixes vs original:
     - dte < 0 (not <=) so 0DTE is included and gets maximum decay weight
@@ -161,6 +186,7 @@ def collect_chain(raw_chain, spot, max_dte, dte_tau=None):
     - T floored at 0.5/365 so gamma doesn't blow up for same-day expiry
     - Chain downloaded once and reused for both 30d and 90d passes
     """
+
     if dte_tau is None:
         dte_tau = DTE_TAU_30 if max_dte <= 30 else DTE_TAU_90
 
@@ -200,55 +226,14 @@ def collect_chain(raw_chain, spot, max_dte, dte_tau=None):
     return calls, puts, num_expirations
 
 
-def get_risk_free_rate():
-    """Live risk-free rate from SOFR (Fed FRED API), falling back to the
-    configured default if the fetch fails.
-    """
-    try:
-        r = requests.get(
-            "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SOFR", timeout=10
-        )
-        sofr = float(r.text.strip().split("\n")[-1].split(",")[1]) / 100
-        rf_rate_msg = (f"  {'Risk-Free Rate':<22} {sofr:.2%} (SOFR)")
-        #console.print(f"  {'Risk-Free Rate':<22} {sofr:.2%} (SOFR)")
-        return sofr, rf_rate_msg
-    except Exception:
-        rf_rate_msg = (f"  {'Risk-Free Rate':<22}{RISK_FREE_RATE:.2%} (fallback — SOFR unavailable)")
-        #console.print(f"  {'Risk-Free Rate':<22}{RISK_FREE_RATE:.4f} (fallback — SOFR unavailable)")
-        return RISK_FREE_RATE, rf_rate_msg
-
-
-def get_vol_close(symbol, is_direct_index, vix_ticker_override=None):
-    """Fetch volatility index close (secondary reference field, not used in
-    the math) — Schwab quote for direct-index symbols (SPX/NDX/VIX), or an
-    explicit yfinance override ticker for anything else.
-
-    Returns (vol_close, vol_ticker).
-    """
-    if is_direct_index:
-        vol_ticker = SCHWAB_VOL_SYMBOL.get(symbol, "")
-    else:
-        vol_ticker = vix_ticker_override or ""
-
-    if not vol_ticker:
-        return 0.0, ""
-
-    try:
-        if is_direct_index:
-            vol_close = fetch_schwab_quote_close(vol_ticker)
-        else:
-            vol_close = yf.Ticker(vol_ticker).fast_info["previousClose"]
-        print(f"  {vol_ticker} previous close: {vol_close:.2f}")
-        return vol_close, vol_ticker
-    except Exception as e:
-        print(f"  Warning: could not fetch {vol_ticker}: {e}")
-        return 0.0, vol_ticker
 
 
 def get_index_ratio(index_ticker, spot, symbol):
+
     """Fetch the live index/ETF ratio for --index conversion (e.g. SPY -> ^GSPC).
 
     Returns (ratio, index_price), or (None, None) if the fetch failed.
+
     """
     try:
         idx = yf.Ticker(index_ticker)

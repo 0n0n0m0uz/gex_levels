@@ -92,15 +92,6 @@ def fetch_schwab_chain(schwab_symbol, today_str, max_dte):
     return raw
 
 
-def fetch_schwab_quote_close(symbol):
-    """Previous close for an index symbol (e.g. $VIX, $VXN) via Schwab quotes."""
-    data = schwab_get(
-        "https://api.schwabapi.com/marketdata/v1/quotes", {"symbols": symbol}
-    )
-    quote = (data.get(symbol) or {}).get("quote") or {}
-    return float(quote.get("closePrice") or 0.0)
-
-
 def _parse_chain_response(data):
     """Flatten one Schwab chains response into {exp_str: {"call": [...], "put": [...]}}."""
     by_exp = {}

@@ -6,6 +6,7 @@ from typing import Optional, Union
 from rich.console import Console
 from rich.rule import Rule
 
+# Adds colors and formats terminal output
 # May Want to Change because this could throw error for someone without color compatible terminal
 console = Console(force_terminal=True)
 
@@ -19,7 +20,6 @@ from gex_levels.getData.fetch_spot import (
     get_chain,
     collect_chain,
     get_risk_free_rate,
-    get_vol_close,
     get_index_ratio,
 )
 from gex_levels.gex.gex_calculations import (
@@ -42,24 +42,16 @@ def compute_gex_levels(
     symbol: str,
     max_dte=MAX_DTE,
     index_ticker_override=None,
-    vix_ticker_override=None,
     no_index_conversion=False,
 ):
-    """Full GEX computation for one symbol.
+    """The primary orchestrator module initiated by  main.py
 
-    This is the primary worker / task function initiated by main.py
-
-    Accepts all symbols including Indices or Stocks.  It first checks Schwab falling back to yfinance
-    if there are issues w Schwab.
-
-    Index accepts either $SPX / SPX, $NDX / NDX, or $VIX / VIX
+    It's the pipeline to calculate GEX for the symbol passed.
 
         index_ticker_override: yfinance ticker for manual ratio conversion, for
                                tickers with no native Schwab index chain
                                (e.g. '^RUT' for IWM). Ignored for SPX/NDX/VIX,
                                which are already in index space.
-        vix_ticker_override:   yfinance ticker for vol index close (e.g. '^RVX'),
-                               manual opt-in for non-index symbols.
     """
 
     ####### Basic Setup of Symbol along with spot price #######################################################################################################################################
@@ -215,10 +207,6 @@ def compute_gex_levels(
         key=lambda p: p[0],
     )
 
-    # --- Fetch volatility index close (secondary reference field, not used in the math) ---
-    vol_close, vol_ticker = get_vol_close(symbol, is_direct_index, vix_ticker_override)
-
-
 ##### All Console Print Statements moved here to end for organization.  Variables are above ###########################
 
     console.print(Rule("[bold green]Market Data[/bold green]"))
@@ -335,8 +323,6 @@ def compute_gex_levels(
         "etf_gamma_flip": etf_gamma_flip,
         "etf_call_wall": etf_call_wall,
         "etf_put_wall": etf_put_wall,
-        "vol_close": float(vol_close),
-        "vol_ticker": vol_ticker or "",
         "gex_profile": gex_profile,
     }
 

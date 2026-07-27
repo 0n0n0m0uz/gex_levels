@@ -11,6 +11,18 @@ You can also specify the project root using this command:
 > 
 >  Old School Way OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data")
 
+## CLI Arguments
+
+    Accepts all symbols including Indices or Stocks.  It first checks Schwab falling back to yfinance
+    if there are issues w Schwab.
+
+    Index accepts either $SPX / SPX, $NDX / NDX, or $VIX / VIX
+
+> --index ^GPSC 
+> 
+The --index parameter instructs the script to convert the data from the ETF space to the actual index space by calculating the ratio between the prices and adjusting the data.  This is primarily for situations when yfinance doesn't provide index data or provides it with different characteristics than a normal stock
+
+
 ## Schwab API
 
 The Schwab API Access tokens are only valid for 7 days after which you must re-authenticate.

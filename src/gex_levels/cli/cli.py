@@ -37,13 +37,6 @@ Examples:
         "Only applies when a single symbol is given; ignored for multi-symbol runs.",
     )
     parser.add_argument(
-        "--vix",
-        metavar="TICKER",
-        default=None,
-        help="Volatility index ticker for expected-move data (e.g. ^RVX). "
-        "Only applies when a single symbol is given.",
-    )
-    parser.add_argument(
         "--days",
         metavar="{30,90,30,90}",
         default="30",

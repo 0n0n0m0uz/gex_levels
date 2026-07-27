@@ -45,10 +45,6 @@ def write_gex_file(data30=None, data90=None):
         "timestamp": header["timestamp"]
     }
 
-    if header.get("vol_close", 0) > 0:
-        vol_key = "VXN_CLOSE" if "VXN" in header.get("vol_ticker", "").upper() else "VIX_CLOSE"
-        output_data[vol_key] = round(header["vol_close"], 2)
-
     tenors = {}
     if data30:
         tenors["30"] = build_section(data30)

@@ -56,6 +56,3 @@ WALL_HYSTERESIS = 0.00  # 10% — wall only moves if new candidate is 10%+ stron
 # rollover). So VIX gamma here uses raw spot VIX as an approximation — flag
 # this if VIX levels look off during steep contango/backwardation.
 SCHWAB_DIRECT_INDEX = {"SPX": "$SPX", "NDX": "$NDX", "VIX": "$VIX"}
-
-# Secondary vol-index close reported alongside SPX/NDX runs (not a primary symbol)
-SCHWAB_VOL_SYMBOL = {"SPX": "$VIX", "NDX": "$VXN"}
