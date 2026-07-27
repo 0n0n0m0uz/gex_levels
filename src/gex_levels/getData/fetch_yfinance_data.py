@@ -36,7 +36,7 @@ def fetch_yfinance_spot(symbol):
 def fetch_yfinance_chain(symbol, today_str):
     """Option chain for `symbol` via yfinance, used only for the fallback
     path when Schwab's chain fetch fails (see fetch_spot.py's
-    _get_cached_or_schwab_chain). Returns raw: a list of
+    get_chain). Returns raw: a list of
     (exp_str, calls_df, puts_df) tuples — the same shape as
     fetch_schwab_data.fetch_schwab_chain's output.
     """

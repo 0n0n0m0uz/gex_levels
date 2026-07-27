@@ -49,15 +49,15 @@ def get_risk_free_rate():
         return RISK_FREE_RATE, rf_rate_msg
 
 
-def _get_cached_or_schwab_spot(symbol, today_str, is_direct_index):
+def get_spot(symbol, today_str):
 
-    """Try the shared spot cache, then Schwab's single-symbol quote endpoint
-    (independent of chain-fetching).
+    """Resolve spot for `symbol`, trying cache -> Schwab -> yfinance in that
+    order. Independent of get_chain() — no shared state between the two
+    beyond each having its own cache.
 
-    Populates _SCHWAB_SPOT_CACHE on a fresh fetch.
-
-    Returns spot, or None if Schwab fetch failed and the yfinance fallback is needed.
+    Returns (spot, is_direct_index).
     """
+    is_direct_index = symbol in SCHWAB_DIRECT_INDEX
     schwab_symbol = SCHWAB_DIRECT_INDEX.get(symbol, symbol)
     cache_key = (symbol, today_str)
 
@@ -66,7 +66,7 @@ def _get_cached_or_schwab_spot(symbol, today_str, is_direct_index):
         # Schwab call and keeps both windows consistent.
         spot = _SCHWAB_SPOT_CACHE[cache_key]
         print(f"Reusing cached {schwab_symbol} spot: {spot:.2f}")
-        return spot
+        return spot, is_direct_index
 
     try:
         console.print()
@@ -76,7 +76,7 @@ def _get_cached_or_schwab_spot(symbol, today_str, is_direct_index):
 
         spot = fetch_schwab_spot(schwab_symbol)
         _SCHWAB_SPOT_CACHE[cache_key] = spot
-        return spot
+        return spot, is_direct_index
 
     except Exception as e:
         if is_direct_index:
@@ -90,16 +90,18 @@ def _get_cached_or_schwab_spot(symbol, today_str, is_direct_index):
         print(
             f"  Schwab spot fetch failed ({e}) — falling back to yfinance for {symbol}"
         )
-        return None
+        spot = fetch_yfinance_spot(symbol)
+        return spot, is_direct_index
 
 
-def _get_cached_or_schwab_chain(symbol, today_str, max_dte, is_direct_index):
+def get_chain(symbol, today_str, max_dte, is_direct_index):
 
-    """Try the shared chain cache, then Schwab's chains endpoint — independent of spot-fetching.
+    """Resolve the raw chain for `symbol`, trying cache -> Schwab -> yfinance in that order.
 
-    Populates _CHAIN_CACHE on a fresh fetch.
+    Independent of get_spot().
 
-    Returns raw_chain, or None if Schwab fetch failed and the yfinance fallback is needed.
+    Returns raw_chain — a list of (exp_str, calls_df, puts_df) tuples — the same shape whether
+    it came from Schwab or yfinance — ready to pass straight into collect_chain().
     """
     schwab_symbol = SCHWAB_DIRECT_INDEX.get(symbol, symbol)
     cache_key = (symbol, today_str)
@@ -110,7 +112,7 @@ def _get_cached_or_schwab_chain(symbol, today_str, max_dte, is_direct_index):
 
     if cache_key in _SCHWAB_FETCH_FAILED:
         print(f"  Schwab chain fetch already failed this run — using {symbol} via yfinance")
-        return None
+        return fetch_yfinance_chain(symbol, today_str)
 
     try:
         console.print()
@@ -132,41 +134,7 @@ def _get_cached_or_schwab_chain(symbol, today_str, max_dte, is_direct_index):
             f"  Schwab chain fetch failed ({e}) — falling back to yfinance for {symbol}"
         )
         _SCHWAB_FETCH_FAILED.add(cache_key)
-        return None
-
-
-def get_spot(symbol, today_str):
-
-    """Resolve spot for `symbol`, trying cache -> Schwab -> yfinance in that
-    order. Independent of get_chain() — no shared state between the two
-    beyond each having its own cache.
-
-    Returns (spot, is_direct_index).
-    """
-    is_direct_index = symbol in SCHWAB_DIRECT_INDEX
-
-    spot = _get_cached_or_schwab_spot(symbol, today_str, is_direct_index)
-    if spot is None:
-        spot = fetch_yfinance_spot(symbol)
-
-    return spot, is_direct_index
-
-
-def get_chain(symbol, today_str, max_dte, is_direct_index):
-
-    """Resolve the raw chain for `symbol`, trying cache -> Schwab -> yfinance in that order.
-
-    Independent of get_spot().
-
-    Returns raw_chain — a list of (exp_str, calls_df, puts_df) tuples — the same shape whether
-    it came from Schwab or yfinance — ready to pass straight into collect_chain().
-    """
-
-    raw_chain = _get_cached_or_schwab_chain(symbol, today_str, max_dte, is_direct_index)
-    if raw_chain is None:
-        raw_chain = fetch_yfinance_chain(symbol, today_str)
-
-    return raw_chain
+        return fetch_yfinance_chain(symbol, today_str)
 
 
 def collect_chain(raw_chain, spot, max_dte, dte_tau=None):
