@@ -98,7 +98,7 @@ def _print_dte_section(data, suffix, levels):
     dr = data["dex_regime"]
     cr = data["cpr_raw"]
     cn = data["cpr_notional"]
-    re = data["regime"]
+    re = data["gex_regime"]
     l = levels
 
     print(

@@ -17,7 +17,7 @@ def write_gex_file(data30=None, data90=None):
 
     def build_section(data):
         return {
-            "regime": data["regime"],
+            "gex_regime": data["gex_regime"],
             "gamma_flip": round(data["gamma_flip"], 2),
             "vol_trigger": round(data["vol_trigger"], 2),
             "hvl": round(data["hvl"], 2),

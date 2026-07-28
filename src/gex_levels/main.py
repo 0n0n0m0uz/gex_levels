@@ -106,7 +106,7 @@ def main():
                         f"  [{w}d] Gamma Flip: {d['gamma_flip']:.2f}  "
                         f"Call Wall: {d['call_wall']:.2f}  "
                         f"Put Wall: {d['put_wall']:.2f}  "
-                        f"({d['regime']})"
+                        f"({d['gex_regime']})"
                     )
 
                 print()

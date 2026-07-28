@@ -112,7 +112,7 @@ def compute_gex_levels(
     
     # --- Net GEX and GEX regime ---
     net_gex = sum(call_gex.values()) + sum(put_gex.values())
-    regime = "positive_gamma" if net_gex >= 0 else "negative_gamma"
+    gex_regime = "positive_gamma" if net_gex >= 0 else "negative_gamma"
 
     # --- Net DEX and DEX regime ---
     net_dex, dex_regime = compute_net_dex(calls, puts, spot, risk_free_rate)
@@ -192,10 +192,9 @@ def compute_gex_levels(
     #######------------------------------------------------------#######
     
     console.print(Rule("[bold green]Market Data[/bold green]"))
-    console.print()
+    console.print()   # insert a blank row
     console.print(f"  {'Spot':<22} ${spot:.2f}")
-    console.print(f"{rf_rate_msg}")  # This has a different format because the rate is calculated in the
-    # Module depending on exception logic
+    console.print(f"{rf_rate_msg}")  # This has a different format because the rate is calc in different module
     console.print(f"  {'Expirations':<22} {num_expirations}")
     console.print(f"  {'Calls':<22} {len(calls):,}")
     console.print(f"  {'Puts':<22} {len(puts):,}")
@@ -296,7 +295,7 @@ def compute_gex_levels(
         "symbol": out_symbol,
         "underlying": float(spot),
         "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "regime": regime,
+        "gex_regime": gex_regime,
         "gamma_flip": float(gamma_flip),
         "vol_trigger": float(vol_trigger),
         "hvl": float(hvl),
