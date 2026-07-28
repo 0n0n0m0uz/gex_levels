@@ -5,6 +5,8 @@ from typing import Optional, Union
 
 from rich.console import Console
 from rich.rule import Rule
+from rich.panel import Panel
+from rich import box
 
 # Adds colors and formats terminal output
 # May Want to Change because this could throw error for someone without color compatible terminal
@@ -74,8 +76,6 @@ def compute_gex_levels(
         raise ValueError(f"No options data available for {symbol}")
 
 
-
-
     ##### --- Per-strike GEX (ticker price space) --- ##############################################################################################
     call_gex = compute_per_strike_gex(calls, spot, risk_free_rate, sign=+1.0)
     put_gex = compute_per_strike_gex(puts, spot, risk_free_rate, sign=-1.0)
@@ -109,31 +109,10 @@ def compute_gex_levels(
     ticker_call_wall = call_wall
     ticker_put_wall = put_wall
 
-    # if call_wall != raw_call_wall:
-    #     print(
-    #         f"  Call wall held at {prev_cw:.2f} (hysteresis — new candidate {raw_call_wall:.2f} not 10%+ stronger)"
-    #     )
-    #     call_wall_low = call_wall_high = call_wall  # single held point, no zone
-    # if put_wall != raw_put_wall:
-    #     print(
-    #         f"  Put wall held at {prev_pw:.2f} (hysteresis — new candidate {raw_put_wall:.2f} not 10%+ stronger)"
-    #     )
-    #     put_wall_low = put_wall_high = put_wall
-
-    # console.print(Rule("[bold magenta]Dealer Positioning[/bold magenta]"))
-    # console.print()
-
-    # Net GEX and regime
+    
+    # --- Net GEX and GEX regime ---
     net_gex = sum(call_gex.values()) + sum(put_gex.values())
     regime = "positive_gamma" if net_gex >= 0 else "negative_gamma"
-
-
-    # console.print(
-    #     f"  {'Net GEX':<22}"
-    #     f"[{gex_color}]${net_gex:,.0f}[/{gex_color}] "
-    #     f"({gex_regime})"
-    # )
-
 
     # --- Net DEX and DEX regime ---
     net_dex, dex_regime = compute_net_dex(calls, puts, spot, risk_free_rate)
@@ -209,6 +188,9 @@ def compute_gex_levels(
 
 ##### All Console Print Statements moved here to end for organization.  Variables are above ###########################
 
+    
+    #######------------------------------------------------------#######
+    
     console.print(Rule("[bold green]Market Data[/bold green]"))
     console.print()
     console.print(f"  {'Spot':<22} ${spot:.2f}")
@@ -218,28 +200,38 @@ def compute_gex_levels(
     console.print(f"  {'Calls':<22} {len(calls):,}")
     console.print(f"  {'Puts':<22} {len(puts):,}")
     console.print(f"  {'Tau':<22} {tau:.0f}-days")
-
+    
+    #######------------------------------------------------------#######
+    
+    # console.print(
+    #     f"  {'Net GEX':<22}"
+    #     f"[{gex_color}]${net_gex:,.0f}[/{gex_color}] "
+    #     f"({gex_regime})"
+    # )
+    
+    #######------------------------------------------------------#######
+    
     console.print(Rule("[bold magenta]Dealer Positioning[/bold magenta]"))
     console.print()
     console.print(
         f"  {'Net DEX':<22} "
         f"[{dex_color}]${net_dex:,.0f}[/{dex_color}] "
-        f"({dex_regime})"
-    )
+        f"({dex_regime})")
     console.print(f"  {'CPR Raw':<22} {cpr_raw:.3f}")
     console.print(f"  {'CPR Notional':<22} {cpr_notional:.3f}")
-
     console.print()
+    
+    #######------------------------------------------------------#######
+    
     console.print(Rule("[bold blue]Volatility[/bold blue]"))
     console.print()
     console.print(f"  {'ATM Skew Slope':<22} {skew_slope:.5f}")
     console.print(f"  {'R²':<22} {skew_r2:.3f}")
     console.print(f"  {'Alpha':<22} {skew_alpha:.2f}")
-    ########################################################################################
-    from rich.panel import Panel
-    from rich import box
-
     console.print()
+    
+    ########################################################################################
+ 
     console.print(Rule("[bold yellow]GEX Levels[/bold yellow]"))
     console.print()
 
@@ -264,9 +256,10 @@ def compute_gex_levels(
 
     # Wrap it in a panel with a down arrow on the right side of the border
     console.print(Panel(content, box=box.ROUNDED, expand=False, title="[cyan]⬇[/cyan]", title_align="right"))
-
+    
+#######------------------------------------------------------#######
+    
     console.print()
-
     console.print(
         f"  GEX profile: [cyan]{len(gex_profile)}[/cyan] strikes "
         f"({sum(1 for _, g in gex_profile if g > 0)} call, "
@@ -284,12 +277,11 @@ def compute_gex_levels(
         )
         put_wall_low = put_wall_high = ticker_put_wall
 
-
+#######------------------------------------------------------#######
+    
     console.print()
     console.print()
-    console.print(
-        Rule(characters="═", style="bold dark_magenta")
-    )
+    console.print(Rule(characters="═", style="bold dark_magenta"))
 
     # Prints two blank lines of space to terminal to separate the 30d and 90d data
     print("\n\n")
