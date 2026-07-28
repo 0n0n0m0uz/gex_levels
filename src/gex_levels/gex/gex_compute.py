@@ -1,17 +1,3 @@
-import os
-import sys
-from datetime import datetime, timezone
-from typing import Optional, Union
-
-from rich.console import Console
-from rich.rule import Rule
-from rich.panel import Panel
-from rich import box
-
-# Adds colors and formats terminal output
-# May Want to Change because this could throw error for someone without color compatible terminal
-console = Console(force_terminal=True)
-
 from gex_levels.config import (
     MAX_DTE,
     DTE_TAU_30,
@@ -38,7 +24,29 @@ from gex_levels.gex.gex_calculations import (
     apply_hysteresis,
     convert_to_index_space,
 )
+from gex_levels.outputs.rich_terminal_output import (
+    print_market_data,
+    print_dealer_positioning,
+    print_volatility,
+    print_gex_levels,
+    print_gex_profile_and_hysteresis,
+    print_footer,
+)
 from debug.debug_hub import hub
+
+####--------------------------------------------------------------------------------------------------------------######
+
+import os
+import sys
+from datetime import datetime, timezone
+####----------------------------------------------------------------------------------------------------------------####
+from typing import Optional, Union
+from rich.console import Console
+# Adds colors and formats terminal output
+# May Want to Change because this could throw error for someone without color compatible terminal
+console = Console(force_terminal=True)
+
+####----------------------------------------------------------------------------------------------------------------####
 
 def compute_gex_levels(
     symbol: str,
@@ -56,7 +64,7 @@ def compute_gex_levels(
                                which are already in index space.
     """
 
-    ####### Basic Setup of Symbol along with spot price #######################################################################################################################################
+    ####### Basic Setup of Symbol along with spot price ------------------------------------------------------------####
 
     # symbol = symbol.upper()
     today_str = datetime.now().strftime("%Y-%m-%d")
@@ -64,7 +72,7 @@ def compute_gex_levels(
     spot, is_direct_index = get_spot(symbol, today_str)
     raw_chain = get_chain(symbol, today_str, max_dte, is_direct_index)
     # get_chain has the logic to get the chain from either schwab or yfinance
-    #### Fetch live risk-free rate from SOFR (Fed FRED API)  ########################################################################################
+    #### Fetch live risk-free rate from SOFR (Fed FRED API)
     risk_free_rate, rf_rate_msg = get_risk_free_rate()
     ####  Raw Data is Downloaded, filtered according to Business Logic and then separated into Numpy Arrays for more efficient processing ####################################################################################################################################
     tau = DTE_TAU_30 if max_dte <= 30 else DTE_TAU_90
@@ -75,8 +83,8 @@ def compute_gex_levels(
     if len(calls) == 0 and len(puts) == 0:
         raise ValueError(f"No options data available for {symbol}")
 
+#### --- Per-strike GEX (ticker price space) -----------------------------------------------------------------------####
 
-    ##### --- Per-strike GEX (ticker price space) --- ##############################################################################################
     call_gex = compute_per_strike_gex(calls, spot, risk_free_rate, sign=+1.0)
     put_gex = compute_per_strike_gex(puts, spot, risk_free_rate, sign=-1.0)
 
@@ -109,7 +117,16 @@ def compute_gex_levels(
     ticker_call_wall = call_wall
     ticker_put_wall = put_wall
 
-    
+    # Hysteresis: a held wall keeps its previous zone (single point, not a
+    # range) — this reassignment must stay here since it feeds the return
+    # dict below, unlike everything the print_* calls below report.
+    call_wall_held = ticker_call_wall != raw_call_wall
+    put_wall_held = ticker_put_wall != raw_put_wall
+    if call_wall_held:
+        call_wall_low = call_wall_high = ticker_call_wall
+    if put_wall_held:
+        put_wall_low = put_wall_high = ticker_put_wall
+
     # --- Net GEX and GEX regime ---
     net_gex = sum(call_gex.values()) + sum(put_gex.values())
     gex_regime = "positive_gamma" if net_gex >= 0 else "negative_gamma"
@@ -136,7 +153,6 @@ def compute_gex_levels(
     skew_slope, skew_r2 = compute_skew_slope(calls, puts, spot)
     skew_alpha = 0.3 + 0.6 * skew_r2  # scales 0.3 (noisy fit) to 0.9 (clean fit)
     # skew_alpha = 0.7
-
 
     #print(f"  Computing gamma flip...")
     # --- Skew-corrected gamma flip ---
@@ -179,118 +195,38 @@ def compute_gex_levels(
                 f"[bold italic grey42]No index conversion requested — levels stay in {symbol} price space[/bold italic grey42]"
             )
 
-
     # Convert profile strikes to output price space
     gex_profile = sorted(
         [(round(s * ratio), int(profile_by_strike[s])) for s in profile_by_strike],
         key=lambda p: p[0],
     )
 
-##### All Console Print Statements moved here to end for organization.  Variables are above ###########################
+####----Console output moved to outputs/rich_terminal_output.py — this only computes.----####
 
-    
-    #######------------------------------------------------------#######
-    
-    console.print(Rule("[bold green]Market Data[/bold green]"))
-    console.print()   # insert a blank row
-    console.print(f"  {'Spot':<22} ${spot:.2f}")
-    console.print(f"{rf_rate_msg}")  # This has a different format because the rate is calc in different module
-    console.print(f"  {'Expirations':<22} {num_expirations}")
-    console.print(f"  {'Calls':<22} {len(calls):,}")
-    console.print(f"  {'Puts':<22} {len(puts):,}")
-    console.print(f"  {'Tau':<22} {tau:.0f}-days")
-    
-    #######------------------------------------------------------#######
-    
-    # console.print(
-    #     f"  {'Net GEX':<22}"
-    #     f"[{gex_color}]${net_gex:,.0f}[/{gex_color}] "
-    #     f"({gex_regime})"
-    # )
-    
-    #######------------------------------------------------------#######
-    
-    console.print(Rule("[bold magenta]Dealer Positioning[/bold magenta]"))
-    console.print()
-    console.print(
-        f"  {'Net DEX':<22} "
-        f"[{dex_color}]${net_dex:,.0f}[/{dex_color}] "
-        f"({dex_regime})")
-    console.print(f"  {'CPR Raw':<22} {cpr_raw:.3f}")
-    console.print(f"  {'CPR Notional':<22} {cpr_notional:.3f}")
-    console.print()
-    
-    #######------------------------------------------------------#######
-    
-    console.print(Rule("[bold blue]Volatility[/bold blue]"))
-    console.print()
-    console.print(f"  {'ATM Skew Slope':<22} {skew_slope:.5f}")
-    console.print(f"  {'R²':<22} {skew_r2:.3f}")
-    console.print(f"  {'Alpha':<22} {skew_alpha:.2f}")
-    console.print()
-    
-    ########################################################################################
- 
-    console.print(Rule("[bold yellow]GEX Levels[/bold yellow]"))
-    console.print()
+    print_market_data({
+        "spot": spot, "rf_rate_msg": rf_rate_msg, "num_expirations": num_expirations,
+        "calls": calls, "puts": puts, "tau": tau,
+    })
+    print_dealer_positioning({
+        "dex_color": dex_color, "net_dex": net_dex, "dex_regime": dex_regime,
+        "cpr_raw": cpr_raw, "cpr_notional": cpr_notional,
+    })
+    print_volatility({
+        "skew_slope": skew_slope, "skew_r2": skew_r2, "skew_alpha": skew_alpha,
+    })
+    print_gex_levels({
+        "gamma_flip": gamma_flip, "call_wall": call_wall, "put_wall": put_wall,
+        "hvl": hvl, "vol_trigger": vol_trigger, "max_pain": max_pain,
+    })
+    print_gex_profile_and_hysteresis({
+        "gex_profile": gex_profile,
+        "call_wall_held": call_wall_held, "prev_cw": prev_cw, "raw_call_wall": raw_call_wall,
+        "put_wall_held": put_wall_held, "prev_pw": prev_pw, "raw_put_wall": raw_put_wall,
+    })
+    print_footer()
 
-    levels = [
-        ("Gamma Flip", gamma_flip),
-        ("Call Wall", call_wall),
-        ("Put Wall", put_wall),
-        ("HVL", hvl),
-        ("Vol Trigger", vol_trigger),
-        ("Max Pain", max_pain),
-    ]
+####---------------------------------------------------------------------------------------------####
 
-    # Sort descending by price
-    levels.sort(key=lambda x: x[1], reverse=True)
-
-    # Build the text lines inside the block
-    lines = []
-    for label, val in levels:
-        lines.append(f"  {label:<22} ${val:,.2f}")
-
-    content = "\n".join(lines)
-
-    # Wrap it in a panel with a down arrow on the right side of the border
-    console.print(Panel(content, box=box.ROUNDED, expand=False, title="[cyan]⬇[/cyan]", title_align="right"))
-    
-#######------------------------------------------------------#######
-    
-    console.print()
-    console.print(
-        f"  GEX profile: [cyan]{len(gex_profile)}[/cyan] strikes "
-        f"({sum(1 for _, g in gex_profile if g > 0)} call, "
-        f"{sum(1 for _, g in gex_profile if g < 0)} put)"
-    )
-
-    if ticker_call_wall != raw_call_wall:
-        print(
-            f"  Call wall held at {prev_cw:.2f} (hysteresis — new candidate {raw_call_wall:.2f} not 10%+ stronger)"
-        )
-        call_wall_low = call_wall_high = ticker_call_wall  # single held point, no zone
-    if ticker_put_wall != raw_put_wall:
-        print(
-            f"  Put wall held at {prev_pw:.2f} (hysteresis — new candidate {raw_put_wall:.2f} not 10%+ stronger)"
-        )
-        put_wall_low = put_wall_high = ticker_put_wall
-
-#######------------------------------------------------------#######
-    
-    console.print()
-    console.print()
-    console.print(Rule(characters="═", style="bold dark_magenta"))
-
-    # Prints two blank lines of space to terminal to separate the 30d and 90d data
-    print("\n\n")
-
-#############################################################################
-
-
-    # print(
-    #     f"  GEX profile: {len(gex_profile)} strikes ({sum(1 for _, g in gex_profile if g > 0)} call, {sum(1 for _, g in gex_profile if g < 0)} put)"
-    # )
     return {
         "symbol": out_symbol,
         "underlying": float(spot),
