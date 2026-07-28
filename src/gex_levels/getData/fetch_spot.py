@@ -12,6 +12,7 @@ from rich.console import Console
 from gex_levels.config import (
     RISK_FREE_RATE,
     SCHWAB_DIRECT_INDEX,
+    YFINANCE_DIRECT_INDEX,
     DTE_TAU_30,
     DTE_TAU_90,
     _CHAIN_CACHE,
@@ -80,13 +81,15 @@ def get_spot(symbol, today_str):
 
     except Exception as e:
         if is_direct_index:
-            # No ETF proxy exists for a pure index under this design —
-            # falling back would mean silently substituting a different
-            # symbol, which is exactly what we're trying not to do.
-            raise ValueError(
-                f"Could not fetch {schwab_symbol} spot from Schwab ({e}) — "
-                f"no fallback available for {symbol} (it has no ETF proxy)"
+            # No ETF proxy for a pure index — fall back to yfinance's own
+            # ^-prefixed index ticker (e.g. "SPX" -> "^SPX") instead of
+            # substituting a different symbol.
+            yf_symbol = YFINANCE_DIRECT_INDEX.get(symbol, symbol)
+            print(
+                f"  Schwab spot fetch failed ({e}) — falling back to yfinance for {yf_symbol}"
             )
+            spot = fetch_yfinance_spot(yf_symbol)
+            return spot, is_direct_index
         print(
             f"  Schwab spot fetch failed ({e}) — falling back to yfinance for {symbol}"
         )
@@ -111,8 +114,9 @@ def get_chain(symbol, today_str, max_dte, is_direct_index):
         return _CHAIN_CACHE[cache_key]
 
     if cache_key in _SCHWAB_FETCH_FAILED:
-        print(f"  Schwab chain fetch already failed this run — using {symbol} via yfinance")
-        return fetch_yfinance_chain(symbol, today_str)
+        yf_symbol = YFINANCE_DIRECT_INDEX.get(symbol, symbol) if is_direct_index else symbol
+        print(f"  Schwab chain fetch already failed this run — using {yf_symbol} via yfinance")
+        return fetch_yfinance_chain(yf_symbol, today_str)
 
     try:
         console.print()
@@ -126,10 +130,12 @@ def get_chain(symbol, today_str, max_dte, is_direct_index):
 
     except Exception as e:
         if is_direct_index:
-            raise ValueError(
-                f"Could not fetch {schwab_symbol} chain from Schwab ({e}) — "
-                f"no fallback available for {symbol} (it has no ETF proxy)"
+            yf_symbol = YFINANCE_DIRECT_INDEX.get(symbol, symbol)
+            print(
+                f"  Schwab chain fetch failed ({e}) — falling back to yfinance for {yf_symbol}"
             )
+            _SCHWAB_FETCH_FAILED.add(cache_key)
+            return fetch_yfinance_chain(yf_symbol, today_str)
         print(
             f"  Schwab chain fetch failed ({e}) — falling back to yfinance for {symbol}"
         )

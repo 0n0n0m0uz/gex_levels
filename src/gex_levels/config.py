@@ -56,3 +56,9 @@ WALL_HYSTERESIS = 0.00  # 10% — wall only moves if new candidate is 10%+ stron
 # rollover). So VIX gamma here uses raw spot VIX as an approximation — flag
 # this if VIX levels look off during steep contango/backwardation.
 SCHWAB_DIRECT_INDEX = {"SPX": "$SPX", "NDX": "$NDX", "VIX": "$VIX"}
+
+# yfinance's ticker convention for the same three indices (^-prefixed, not
+# $-prefixed) — used as the last-resort fallback when Schwab's direct-index
+# fetch fails. Verified live: yf.Ticker("^SPX")/"^NDX"/"^VIX" all return real
+# option chains; bare "SPX"/"$SPX" do not.
+YFINANCE_DIRECT_INDEX = {"SPX": "^SPX", "NDX": "^NDX", "VIX": "^VIX"}

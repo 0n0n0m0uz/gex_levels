@@ -42,8 +42,8 @@ def compute_gex_levels(
     symbol: str,
     max_dte=MAX_DTE,
     index_ticker_override=None,
-    no_index_conversion=False,
-):
+    no_index_conversion=False,):
+
     """The primary orchestrator module initiated by  main.py
 
     It's the pipeline to calculate GEX for the symbol passed.
@@ -67,11 +67,11 @@ def compute_gex_levels(
     ####  Raw Data is Downloaded, filtered according to Business Logic and then separated into Numpy Arrays for more efficient processing ####################################################################################################################################
     tau = DTE_TAU_30 if max_dte <= 30 else DTE_TAU_90
 
-
+    # collect_chain is the transformation of the raw api data into the format needed for futher processing
     calls, puts, num_expirations = collect_chain(raw_chain, spot, max_dte, dte_tau=tau)
 
     if len(calls) == 0 and len(puts) == 0:
-        raise ValueError(f"No options data for {symbol}")
+        raise ValueError(f"No options data available for {symbol}")
 
 
 

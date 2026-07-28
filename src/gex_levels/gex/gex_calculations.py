@@ -215,7 +215,7 @@ def compute_skew_slope(calls, puts, spot):
     the resulting gamma flip as a smoothed proxy, not a precise level.
     """
     if len(puts) == 0:
-        return 0.0
+        return 0.0, 0.0
 
     K = puts[:, 0]
     IV = puts[:, 3]
@@ -224,7 +224,7 @@ def compute_skew_slope(calls, puts, spot):
     IV_near = IV[near_atm]
 
     if len(K_near) < 3:
-        return 0.0
+        return 0.0, 0.0
     # This manual slope calculation was changed to use a built-in method that also returns R2
     # slope, _ = np.polyfit(K_near, IV_near, 1)
     from scipy.stats import linregress
