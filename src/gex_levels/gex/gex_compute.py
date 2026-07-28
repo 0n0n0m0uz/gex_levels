@@ -71,7 +71,11 @@ def compute_gex_levels(
     today_str = datetime.now().strftime("%Y-%m-%d")
     # is_direct_index is needed because yfinance doesnt use the same $SPX format as Schwab requires
     spot, is_direct_index = get_spot(symbol, today_str)
-    raw_chain = get_chain(symbol, today_str, max_dte, is_direct_index)
+    # Always fetch at the full MAX_DTE breadth (not this call's own max_dte) so the
+    # historical chain snapshot below is always complete regardless of which --days
+    # window(s) get requested, or in what order across separate same-day runs.
+    # collect_chain() below still correctly narrows to this window's own max_dte.
+    raw_chain = get_chain(symbol, today_str, MAX_DTE, is_direct_index)
     # get_chain has the logic to get the chain from either schwab or yfinance
     save_chain_snapshot(symbol, today_str, raw_chain)
     #### Fetch live risk-free rate from SOFR (Fed FRED API)
