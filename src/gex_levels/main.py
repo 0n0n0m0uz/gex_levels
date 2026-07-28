@@ -16,6 +16,7 @@ from gex_levels.gex.gex_compute import compute_gex_levels
 # from gex_levels.gex.gex_compute_0dte import ....
 from gex_levels.outputs.output_gex_file import write_gex_file
 from gex_levels.outputs.pinescript_output import print_pinescript_block
+from gex_levels.outputs.historical_store import save_daily_summary
 from debug.debug_hub import hub
 
 # External Modules
@@ -84,6 +85,7 @@ def main():
                         max_dte=w,
                         index_ticker_override=args.index,
                     )
+                    save_daily_summary(symbol, data[w]["timestamp"][:10], w, data[w])
 
                 # Task 2
                 write_gex_file(

@@ -3,6 +3,7 @@ from gex_levels.utils.paths import get_project_root
 
 BASE_DIR = get_project_root()
 OUTPUT_DIR = BASE_DIR / "data"
+HISTORY_DIR = OUTPUT_DIR / "history"
 
 
 # Default symbols when none are given on the command line

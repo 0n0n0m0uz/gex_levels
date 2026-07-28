@@ -32,6 +32,7 @@ from gex_levels.outputs.rich_terminal_output import (
     print_gex_profile_and_hysteresis,
     print_footer,
 )
+from gex_levels.outputs.historical_store import save_chain_snapshot
 from debug.debug_hub import hub
 
 ####--------------------------------------------------------------------------------------------------------------######
@@ -72,6 +73,7 @@ def compute_gex_levels(
     spot, is_direct_index = get_spot(symbol, today_str)
     raw_chain = get_chain(symbol, today_str, max_dte, is_direct_index)
     # get_chain has the logic to get the chain from either schwab or yfinance
+    save_chain_snapshot(symbol, today_str, raw_chain)
     #### Fetch live risk-free rate from SOFR (Fed FRED API)
     risk_free_rate, rf_rate_msg = get_risk_free_rate()
     ####  Raw Data is Downloaded, filtered according to Business Logic and then separated into Numpy Arrays for more efficient processing ####################################################################################################################################
