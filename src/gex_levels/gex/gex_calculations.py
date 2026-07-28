@@ -297,14 +297,13 @@ def read_previous_etf_walls(symbol, out_symbol, tenor):
     computed separately per window, so last run's value for the *other*
     window isn't a valid hysteresis baseline for this one).
     """
-    path = os.path.join(OUTPUT_DIR, f"gex_{out_symbol}.json")
+    path = os.path.join(OUTPUT_DIR, f"gex_{out_symbol}_{tenor}.json")
     try:
         with open(path, "r", encoding="utf-8") as f:
             prev_data = json.load(f)
-        section = prev_data.get("tenors", {}).get(str(tenor), {})
         return (
-            float(section.get("etf_call_wall", 0.0)),
-            float(section.get("etf_put_wall", 0.0)),
+            float(prev_data.get("etf_call_wall", 0.0)),
+            float(prev_data.get("etf_put_wall", 0.0)),
         )
     except (FileNotFoundError, ValueError, json.JSONDecodeError):
         return 0.0, 0.0

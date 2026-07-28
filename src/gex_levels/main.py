@@ -87,11 +87,9 @@ def main():
                     )
                     save_daily_summary(symbol, data[w]["timestamp"][:10], w, data[w])
 
-                # Task 2
-                write_gex_file(
-                    data30=data.get(30),
-                    data90=data.get(90),
-                )
+                    # Task 2
+                    write_gex_file(data[w], w)
+
                 # Task 3
                 print_pinescript_block(
                     data30=data.get(30),
