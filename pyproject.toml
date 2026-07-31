@@ -42,3 +42,4 @@ dev = [
 # uv gex on cli runs main.py
 gex = "gex_levels.main:main"
 check-schwab-token = "gex_levels.auth.check_schwab_token:main"
+gex-history = "gex_levels.outputs.view_history:main"
