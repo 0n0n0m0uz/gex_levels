@@ -45,7 +45,7 @@ def get_risk_free_rate():
         #console.print(f"  {'Risk-Free Rate':<22} {sofr:.2%} (SOFR)")
         return sofr, rf_rate_msg
     except Exception:
-        rf_rate_msg = (f"  {'Risk-Free Rate':<22}{RISK_FREE_RATE:.2%} (fallback — SOFR unavailable)")
+        rf_rate_msg = (f"  {'Risk-Free Rate':<22} {RISK_FREE_RATE:.2%} (fallback — SOFR unavailable)")
         #console.print(f"  {'Risk-Free Rate':<22}{RISK_FREE_RATE:.4f} (fallback — SOFR unavailable)")
         return RISK_FREE_RATE, rf_rate_msg
 
