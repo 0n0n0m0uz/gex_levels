@@ -13,8 +13,10 @@ The Orchestration file main.py initiates 4 tasks:
 from gex_levels.cli.cli import parse_args
 from gex_levels.config import DEFAULT_SYMBOLS, OUTPUT_DIR
 from gex_levels.gex.gex_compute import compute_gex_levels
-# from gex_levels.gex.gex_compute_0dte import ....
+from gex_levels.gex.zero_dte_gex_compute import compute_gex_levels_0dte
 from gex_levels.outputs.output_gex_file import write_gex_file
+from gex_levels.outputs.zero_dte_output_gex_file import write_gex_file_0dte
+from gex_levels.outputs.zero_dte_pinescript_output import print_pinescript_block_0dte
 from gex_levels.outputs.pinescript_output import print_pinescript_block
 from gex_levels.outputs.historical_store import save_daily_summary
 from debug.debug_hub import hub
@@ -43,9 +45,32 @@ def main():
 
     # --- Execution Logic to split into 0DTE vs Daily track---
     if args.dte_zero:
-        # 0DTE is active: ONLY use symbol, ignore everything else
-        print(f"Running 0DTE logic for symbol: {symbols}")
-        # Call your 0DTE function here: run_0dte_pipeline(symbol=args.symbol)
+        # 0DTE is active: ONLY use symbol, ignore everything else (--days is
+        # meaningless for 0DTE — there's only one window, today's expiration)
+        if len(symbols) > 1 and args.index:
+            print("Warning: --index is ignored when multiple symbols are given.")
+            args.index = None
+
+        print(f"0DTE GEX Calculator -- {len(symbols)} symbol(s)\n")
+
+        for symbol in symbols:
+            try:
+                console.print(
+                    f"[bold italic grey42]...Downloading {symbol} 0DTE options chain...[/bold italic grey42]"
+                )
+                data = compute_gex_levels_0dte(symbol, index_ticker_override=args.index)
+                # tenor=0 (int, not "0dte") — summary.parquet's tenor column is
+                # already int64 from the daily 30/90 rows; 0 is reserved/unused
+                # by the daily path (main.py's loop skips w == 0), so it's a
+                # safe sentinel that keeps the column's dtype homogeneous.
+                save_daily_summary(symbol, data["timestamp"][:10], 0, data)
+                write_gex_file_0dte(data)
+                print_pinescript_block_0dte(data)
+            except Exception:
+                import traceback
+                traceback.print_exc()
+
+        print(f"Done.")
 
     else:
 
