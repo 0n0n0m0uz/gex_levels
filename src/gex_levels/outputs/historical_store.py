@@ -4,14 +4,9 @@ from gex_levels.config import HISTORY_DIR
 
 
 def save_chain_snapshot(symbol, date_str, raw_chain):
-    """Persist one day's raw per-contract chain (strike/OI/volume/IV) for
-    `symbol`, captured before collect_chain() DTE-weights the OI, drops
-    volume, and applies the +-20% OTM filter for GEX math. One Parquet file
-    per symbol per day (data/history/{symbol}/chain/{date}.parquet) — a
-    rerun on the same day just overwrites that single file, no merge needed.
-
-    Schwab and yfinance name the volume column differently
-    (totalVolume vs volume) — normalized to "volume" here.
+    """Persist raw per-contract chain for `symbol`
+    One Parquet file per symbol/day (data/history/{symbol}/chain/{date}.parquet) — a re-pull on the same day just overwrites
+    Schwab and yfinance use different colnames (totalVolume vs volume) — normalized to "volume" here.
     """
     rows = []
     for exp_str, calls_df, puts_df in raw_chain:
