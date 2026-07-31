@@ -11,7 +11,7 @@ from gex_levels.gex.zero_dte_gex_calculations import (
     collect_chain_0dte,
     compute_per_strike_gex,
     compute_net_dex,
-    compute_cpr,
+    compute_pcr,
     compute_hvl,
     compute_wall_zones,
     compute_vol_trigger,
@@ -20,6 +20,17 @@ from gex_levels.gex.zero_dte_gex_calculations import (
     find_gamma_flip,
     convert_to_index_space,
 )
+from gex_levels.outputs.rich_terminal_output import (
+    print_dealer_positioning,
+    print_volatility,
+    print_gex_levels,
+    print_gex_profile_and_hysteresis,
+    print_footer,
+)
+from gex_levels.outputs.zero_dte_rich_terminal_output import print_market_data_0dte
+from rich.console import Console
+
+console = Console(force_terminal=True)
 
 # Conservative estimate of the opening fraction of today's 0DTE volume (the
 # rest is closings/rolls) — see collect_chain_0dte()'s docstring for why this
@@ -102,8 +113,8 @@ def compute_gex_levels_0dte(
     net_dex, dex_regime = compute_net_dex(calls, puts, spot, risk_free_rate)
     dex_color = "red" if net_dex < 0 else "green"
 
-    # --- Call/Put ratios ---
-    cpr_raw, cpr_notional = compute_cpr(calls, puts)
+    # --- Put/Call ratios ---
+    pcr_raw, pcr_notional = compute_pcr(calls, puts)
 
     # --- HVL ---
     hvl = compute_hvl(call_gex, put_gex)
@@ -140,8 +151,8 @@ def compute_gex_levels_0dte(
                 )
                 spot = index_price
         else:
-            print(
-                f"  No index conversion requested — levels stay in {symbol} price space"
+            console.print(
+                f"[bold italic grey42]No index conversion requested — levels stay in {symbol} price space[/bold italic grey42]"
             )
 
     # Convert profile strikes to output price space
@@ -150,22 +161,29 @@ def compute_gex_levels_0dte(
         key=lambda p: p[0],
     )
 
-####----Console output — plain print(), unlike the daily path's rich_terminal_output module (no hysteresis/tenor concepts to render here).----####
+####----Console output — reuses rich_terminal_output's styled functions directly where they're already generic (dealer positioning, volatility, GEX levels, footer); print_gex_profile_and_hysteresis() is fed neutral hysteresis values since 0DTE has none, and market data gets a 0DTE-specific variant (Open Ratio instead of Tau).----####
 
-    print(f"\n0DTE GEX — {out_symbol}  ({num_expirations} expiration, spot {spot:.2f})")
-    print(f"  {rf_rate_msg}")
-    print(f"  Calls: {len(calls)}  Puts: {len(puts)}")
-    print(f"  Net GEX:     {net_gex:,.0f} ({gex_regime})")
-    print(f"  Net DEX:     {net_dex:,.0f} ({dex_regime}, {dex_color})")
-    print(f"  CPR:         {cpr_raw:.2f} raw / {cpr_notional:.2f} notional")
-    print(f"  Gamma Flip:  {gamma_flip:.2f}")
-    print(f"  Vol Trigger: {vol_trigger:.2f}")
-    print(f"  Call Wall:   {call_wall:.2f}  [{call_wall_low:.2f} - {call_wall_high:.2f}]")
-    print(f"  Put Wall:    {put_wall:.2f}  [{put_wall_low:.2f} - {put_wall_high:.2f}]")
-    print(f"  HVL:         {hvl:.2f}")
-    print(f"  Max Pain:    {max_pain:.2f}")
-    print(f"  Skew slope:  {skew_slope:.5f} (r2={skew_r2:.2f}, alpha={skew_alpha:.2f})")
-    print(f"  GEX Profile: {len(gex_profile)} strikes\n")
+    print_market_data_0dte({
+        "spot": spot, "rf_rate_msg": rf_rate_msg, "num_expirations": num_expirations,
+        "calls": calls, "puts": puts, "open_ratio": OPEN_RATIO,
+    })
+    print_dealer_positioning({
+        "dex_color": dex_color, "net_dex": net_dex, "dex_regime": dex_regime,
+        "pcr_raw": pcr_raw, "pcr_notional": pcr_notional,
+    })
+    print_volatility({
+        "skew_slope": skew_slope, "skew_r2": skew_r2, "skew_alpha": skew_alpha,
+    })
+    print_gex_levels({
+        "gamma_flip": gamma_flip, "call_wall": call_wall, "put_wall": put_wall,
+        "hvl": hvl, "vol_trigger": vol_trigger, "max_pain": max_pain,
+    })
+    print_gex_profile_and_hysteresis({
+        "gex_profile": gex_profile,
+        "call_wall_held": False, "prev_cw": 0.0, "raw_call_wall": call_wall,
+        "put_wall_held": False, "prev_pw": 0.0, "raw_put_wall": put_wall,
+    })
+    print_footer()
 
 ####---------------------------------------------------------------------------------------------####
 
@@ -187,7 +205,7 @@ def compute_gex_levels_0dte(
         "net_gex": float(net_gex),
         "net_dex": float(net_dex),
         "dex_regime": dex_regime,
-        "cpr_raw": float(cpr_raw),
-        "cpr_notional": float(cpr_notional),
+        "pcr_raw": float(pcr_raw),
+        "pcr_notional": float(pcr_notional),
         "gex_profile": gex_profile,
     }

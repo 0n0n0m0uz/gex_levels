@@ -66,11 +66,19 @@ def main():
                 save_daily_summary(symbol, data["timestamp"][:10], 0, data)
                 write_gex_file_0dte(data)
                 print_pinescript_block_0dte(data)
+
+                print(
+                    f"  Gamma Flip: {data['gamma_flip']:.2f}  "
+                    f"Call Wall: {data['call_wall']:.2f}  "
+                    f"Put Wall: {data['put_wall']:.2f}  "
+                    f"({data['gex_regime']})"
+                )
+                print()
             except Exception:
                 import traceback
                 traceback.print_exc()
 
-        print(f"Done.")
+        print(f"Done. Files in {OUTPUT_DIR}")
 
     else:
 
