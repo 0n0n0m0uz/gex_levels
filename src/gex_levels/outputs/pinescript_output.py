@@ -96,8 +96,8 @@ def _print_dte_section(data, suffix, levels):
     mp = data["max_pain"]
     nd = data["net_dex"]
     dr = data["dex_regime"]
-    cr = data["cpr_raw"]
-    cn = data["cpr_notional"]
+    cr = data["pcr_raw"]
+    cn = data["pcr_notional"]
     re = data["gex_regime"]
     l = levels
 
@@ -122,8 +122,8 @@ def _print_dte_section(data, suffix, levels):
     print(f"var string NET_GEX{s}    = {l['net_gex_str']}")
     print(f"var float  NET_DEX{s}    = {nd:.1f}")
     print(f'var string DEX_REGIME{s} = "{dr}"')
-    print(f"var float  CPR_RAW{s}    = {cr:.4f}")
-    print(f"var float  CPR_NOTL{s}   = {cn:.4f}")
+    print(f"var float  PCR_RAW{s}    = {cr:.4f}")
+    print(f"var float  PCR_NOTL{s}   = {cn:.4f}")
     for i, (price, gex) in enumerate(l["top5"], 1):
         print(f"var float GEX_NODE{i}_P{s} = {price:.2f}")
         print(f"var float GEX_NODE{i}_V{s} = {gex:.1f}")

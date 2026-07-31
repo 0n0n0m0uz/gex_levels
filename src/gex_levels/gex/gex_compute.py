@@ -13,7 +13,7 @@ from gex_levels.getData.fetch_spot import (
 from gex_levels.gex.gex_calculations import (
     compute_per_strike_gex,
     compute_net_dex,
-    compute_cpr,
+    compute_pcr,
     compute_hvl,
     compute_wall_zones,
     compute_vol_trigger,
@@ -141,8 +141,8 @@ def compute_gex_levels(
     net_dex, dex_regime = compute_net_dex(calls, puts, spot, risk_free_rate)
     dex_color = "red" if net_dex < 0 else "green"
 
-    # --- Call/Put ratios ---
-    cpr_raw, cpr_notional = compute_cpr(calls, puts)
+    # --- Put/Call ratios ---
+    pcr_raw, pcr_notional = compute_pcr(calls, puts)
 
     # --- HVL and Vol Trigger (ticker price space) ---
     hvl = compute_hvl(call_gex, put_gex)
@@ -215,7 +215,7 @@ def compute_gex_levels(
     })
     print_dealer_positioning({
         "dex_color": dex_color, "net_dex": net_dex, "dex_regime": dex_regime,
-        "cpr_raw": cpr_raw, "cpr_notional": cpr_notional,
+        "pcr_raw": pcr_raw, "pcr_notional": pcr_notional,
     })
     print_volatility({
         "skew_slope": skew_slope, "skew_r2": skew_r2, "skew_alpha": skew_alpha,
@@ -251,8 +251,8 @@ def compute_gex_levels(
         "net_gex": float(net_gex),
         "net_dex": float(net_dex),
         "dex_regime": dex_regime,
-        "cpr_raw": float(cpr_raw),
-        "cpr_notional": float(cpr_notional),
+        "pcr_raw": float(pcr_raw),
+        "pcr_notional": float(pcr_notional),
         "etf_gamma_flip": etf_gamma_flip,
         "etf_call_wall": etf_call_wall,
         "etf_put_wall": etf_put_wall,

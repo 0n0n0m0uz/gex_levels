@@ -19,15 +19,15 @@ def print_market_data(data):
 
 
 def print_dealer_positioning(data):
-    """data: dex_color, net_dex, dex_regime, cpr_raw, cpr_notional"""
+    """data: dex_color, net_dex, dex_regime, pcr_raw, pcr_notional"""
     console.print(Rule("[bold magenta]Dealer Positioning[/bold magenta]"))
     console.print()
     console.print(
         f"  {'Net DEX':<22} "
         f"[{data['dex_color']}]${data['net_dex']:,.0f}[/{data['dex_color']}] "
         f"({data['dex_regime']})")
-    console.print(f"  {'CPR Raw':<22} {data['cpr_raw']:.3f}")
-    console.print(f"  {'CPR Notional':<22} {data['cpr_notional']:.3f}")
+    console.print(f"  {'Put-Call Raw':<22} {data['pcr_raw']:.3f}")
+    console.print(f"  {'Put-Call Notional':<22} {data['pcr_notional']:.3f}")
     console.print()
 
 
@@ -35,7 +35,7 @@ def print_volatility(data):
     """data: skew_slope, skew_r2, skew_alpha"""
     console.print(Rule("[bold blue]Volatility[/bold blue]"))
     console.print()
-    console.print(f"  {'ATM Skew Slope':<22} {data['skew_slope']:.5f}")
+    console.print(f"  {'ATM Skew Slope':<22} {data['skew_slope']: .5f}")
     console.print(f"  {'R²':<22} {data['skew_r2']:.3f}")
     console.print(f"  {'Alpha':<22} {data['skew_alpha']:.2f}")
     console.print()

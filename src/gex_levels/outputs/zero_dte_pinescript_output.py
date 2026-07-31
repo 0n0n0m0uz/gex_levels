@@ -21,8 +21,8 @@ def print_pinescript_block_0dte(data):
     pw = data["put_wall"]
     nd = data["net_dex"]
     dr = data["dex_regime"]
-    cr = data["cpr_raw"]
-    cn = data["cpr_notional"]
+    cr = data["pcr_raw"]
+    cn = data["pcr_notional"]
     re = data["gex_regime"]
 
     sep = "=" * 63
@@ -53,8 +53,8 @@ def print_pinescript_block_0dte(data):
     print(f"var string NET_GEX    = {levels['net_gex_str']}")
     print(f"var float  NET_DEX    = {nd:.1f}")
     print(f'var string DEX_REGIME = "{dr}"')
-    print(f"var float  CPR_RAW    = {cr:.4f}")
-    print(f"var float  CPR_NOTL   = {cn:.4f}")
+    print(f"var float  PCR_RAW    = {cr:.4f}")
+    print(f"var float  PCR_NOTL   = {cn:.4f}")
     for i, (price, gex) in enumerate(levels["top5"], 1):
         print(f"var float GEX_NODE{i}_P = {price:.2f}")
         print(f"var float GEX_NODE{i}_V = {gex:.1f}")

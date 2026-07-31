@@ -98,17 +98,19 @@ def compute_net_dex(calls, puts, spot, r):
     return net, regime
 
 
-def compute_cpr(calls, puts):
-    """Compute call/put ratios. Identical to the daily version."""
+def compute_pcr(calls, puts):
+    """Compute put/call ratios (standard PCR convention — puts over calls).
+    Identical to the daily version.
+    """
     if len(calls) == 0 or len(puts) == 0:
         return 1.0, 1.0
     call_oi = float(np.sum(calls[:, 1]))
     put_oi = float(np.sum(puts[:, 1]))
     call_notl = float(np.sum(calls[:, 1] * calls[:, 0]))
     put_notl = float(np.sum(puts[:, 1] * puts[:, 0]))
-    cpr_raw = call_oi / put_oi if put_oi > 0 else 1.0
-    cpr_notional = call_notl / put_notl if put_notl > 0 else 1.0
-    return cpr_raw, cpr_notional
+    pcr_raw = put_oi / call_oi if call_oi > 0 else 1.0
+    pcr_notional = put_notl / call_notl if call_notl > 0 else 1.0
+    return pcr_raw, pcr_notional
 
 
 def compute_max_pain(calls, puts):

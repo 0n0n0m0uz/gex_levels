@@ -29,8 +29,8 @@ var float KEY_PUT_3_30   = 128.00
 var string NET_GEX_30    = "+34.8M"
 var float  NET_DEX_30    = -7632868.8
 var string DEX_REGIME_30 = "dealer_short"
-var float  CPR_RAW_30    = 2.8766
-var float  CPR_NOTL_30   = 3.1101
+var float  PCR_RAW_30    = 2.8766
+var float  PCR_NOTL_30   = 3.1101
 var float GEX_NODE1_P_30 = 140.00
 var float GEX_NODE1_V_30 = 13372200.0
 var float GEX_NODE2_P_30 = 135.00
@@ -61,8 +61,8 @@ var float KEY_PUT_3_90   = 127.00
 var string NET_GEX_90    = "+47.1M"
 var float  NET_DEX_90    = -11912161.3
 var string DEX_REGIME_90 = "dealer_short"
-var float  CPR_RAW_90    = 2.6647
-var float  CPR_NOTL_90   = 2.8842
+var float  PCR_RAW_90    = 2.6647
+var float  PCR_NOTL_90   = 2.8842
 var float GEX_NODE1_P_90 = 140.00
 var float GEX_NODE1_V_90 = 16016142.0
 var float GEX_NODE2_P_90 = 135.00
@@ -222,10 +222,10 @@ if barstate.islast and show_table
     table.cell(tbl, 1, 9,  DEX_REGIME_30,      text_color=DEX_REGIME_30 == "dealer_long" ? color.green : color.red, text_size=size.small)
     table.cell(tbl, 2, 9,  DEX_REGIME_90,      text_color=DEX_REGIME_90 == "dealer_long" ? color.green : color.red, text_size=size.small)
 
-    table.cell(tbl, 0, 10, "CPR Raw",          text_color=color.silver, text_size=size.small)
-    table.cell(tbl, 1, 10, str.tostring(CPR_RAW_30), text_color=CPR_RAW_30 > 1.0 ? color.green : color.red, text_size=size.small)
-    table.cell(tbl, 2, 10, str.tostring(CPR_RAW_90), text_color=CPR_RAW_90 > 1.0 ? color.green : color.red, text_size=size.small)
+    table.cell(tbl, 0, 10, "Put-Call Raw",     text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 10, str.tostring(PCR_RAW_30), text_color=PCR_RAW_30 > 1.0 ? color.red : color.green, text_size=size.small)
+    table.cell(tbl, 2, 10, str.tostring(PCR_RAW_90), text_color=PCR_RAW_90 > 1.0 ? color.red : color.green, text_size=size.small)
 
-    table.cell(tbl, 0, 11, "CPR Notional",     text_color=color.silver, text_size=size.small)
-    table.cell(tbl, 1, 11, str.tostring(CPR_NOTL_30), text_color=CPR_NOTL_30 > 1.0 ? color.green : color.red, text_size=size.small)
-    table.cell(tbl, 2, 11, str.tostring(CPR_NOTL_90), text_color=CPR_NOTL_90 > 1.0 ? color.green : color.red, text_size=size.small)
+    table.cell(tbl, 0, 11, "Put-Call Notional",text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 11, str.tostring(PCR_NOTL_30), text_color=PCR_NOTL_30 > 1.0 ? color.red : color.green, text_size=size.small)
+    table.cell(tbl, 2, 11, str.tostring(PCR_NOTL_90), text_color=PCR_NOTL_90 > 1.0 ? color.red : color.green, text_size=size.small)

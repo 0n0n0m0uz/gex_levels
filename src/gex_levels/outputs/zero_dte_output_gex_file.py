@@ -36,8 +36,8 @@ def write_gex_file_0dte(data):
         "net_gex": int(round(data["net_gex"])),
         "net_dex": int(round(data["net_dex"])),
         "dex_regime": data["dex_regime"],
-        "cpr_raw": round(data["cpr_raw"], 4),
-        "cpr_notional": round(data["cpr_notional"], 4),
+        "pcr_raw": round(data["pcr_raw"], 4),
+        "pcr_notional": round(data["pcr_notional"], 4),
     }
 
     with open(path, "w", encoding="utf-8") as f:

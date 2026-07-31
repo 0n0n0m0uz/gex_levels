@@ -53,8 +53,8 @@ def save_daily_summary(symbol, date_str, tenor, data):
         "net_gex": data["net_gex"],
         "net_dex": data["net_dex"],
         "dex_regime": data["dex_regime"],
-        "cpr_raw": data["cpr_raw"],
-        "cpr_notional": data["cpr_notional"],
+        "pcr_raw": data["pcr_raw"],
+        "pcr_notional": data["pcr_notional"],
     }
 
     out_dir = HISTORY_DIR / symbol
