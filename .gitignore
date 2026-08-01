@@ -1,7 +1,7 @@
 .env
 .schwab_token.json
 /data/
-src/gex_levels/volume/data/
+src/gex_levels/reports/data/
 __pycache__/
 *.pyc
 user/
