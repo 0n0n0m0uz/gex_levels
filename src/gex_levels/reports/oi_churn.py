@@ -20,99 +20,60 @@ Usage:
 """
 
 import os
+import csv
 import json
-import base64
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime
 
 
-import requests
 from dotenv import load_dotenv
 
 load_dotenv()
 
-SCHWAB_CLIENT_ID = os.getenv("SCHWAB_CLIENT_ID")
-SCHWAB_CLIENT_SECRET = os.getenv("SCHWAB_CLIENT_SECRET")
-from gex_levels.auth.api_auth_schwab import SCHWAB_TOKEN_PATH as SCHWAB_TOKEN
+from gex_levels.config import BASE_DIR
+from gex_levels.getData.fetch_spot import get_spot, get_chain
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+DATA_DIR = BASE_DIR / "src" / "gex_levels" / "reports" / "data"
 
 NEAR_DTE = 21  # near-term bucket ceiling
-STRIKE_COUNT = 100  # strikes around ATM to request from Schwab
+
+CSV_FIELDS = [
+    "exp", "type", "strike", "dte",
+    "oi_prior", "oi_today", "delta_oi",
+    "volume", "new_oi_vol", "churn_vol",
+]
 
 
-def _refresh_schwab_token(token_data):
-    """Refresh an expired Schwab access token using the stored refresh_token."""
-    auth_str = base64.b64encode(
-        f"{SCHWAB_CLIENT_ID}:{SCHWAB_CLIENT_SECRET}".encode()
-    ).decode()
-    resp = requests.post(
-        "https://api.schwabapi.com/v1/oauth/token",
-        headers={
-            "Authorization": f"Basic {auth_str}",
-            "Content-Type": "application/x-www-form-urlencoded",
-        },
-        data={
-            "grant_type": "refresh_token",
-            "refresh_token": token_data["token"]["refresh_token"],
-        },
-        timeout=20,
-    )
-    resp.raise_for_status()
-    new_token = resp.json()
-    if "refresh_token" not in new_token:
-        new_token["refresh_token"] = token_data["token"]["refresh_token"]
-    token_data["token"] = new_token
-    with open(SCHWAB_TOKEN, "w") as f:
-        json.dump(token_data, f)
-    return new_token["access_token"]
+def csv_path(symbol, window_key, ts):
+    return os.path.join(DATA_DIR, f"oi_churn_{symbol}_{window_key}_{ts}.csv")
 
 
-def fetch_schwab_chain(symbol, max_dte):
-    with open(SCHWAB_TOKEN) as f:
-        token_data = json.load(f)
-
-    today = datetime.now()
-    to_date = today + timedelta(days=max_dte)
-
-    def _request(access_token):
-        return requests.get(
-            "https://api.schwabapi.com/marketdata/v1/chains",
-            params={
-                "symbol": symbol,
-                "strikeCount": STRIKE_COUNT,
-                "fromDate": today.strftime("%Y-%m-%d"),
-                "toDate": to_date.strftime("%Y-%m-%d"),
-            },
-            headers={"Authorization": f"Bearer {access_token}"},
-            timeout=60,
-        )
-
-    resp = _request(token_data["token"]["access_token"])
-    if resp.status_code == 401:
-        access_token = _refresh_schwab_token(token_data)
-        resp = _request(access_token)
-    if resp.status_code != 200:
-        raise RuntimeError(f"Schwab API returned {resp.status_code}: {resp.text}")
-    return resp.json()
+def save_csv(path, rows):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+        writer.writeheader()
+        writer.writerows(rows)
 
 
-def parse_chain(data, min_dte, max_dte):
-    """Flatten Schwab's chain response into {"exp|strike|type": {"oi", "volume", "dte"}}."""
-    now = datetime.now()
+def parse_chain(raw_chain, min_dte, max_dte):
+    """Flatten already-resolved chain data (see get_chain()) into
+    {"exp|strike|type": {"oi", "volume", "dte"}}.
+    """
+    today = datetime.now().date()
     snapshot = {}
-    for map_key, opt_type in [("callExpDateMap", "call"), ("putExpDateMap", "put")]:
-        for exp_key, strikes in data.get(map_key, {}).items():
-            exp_str = exp_key.split(":")[0]
-            dte = (datetime.strptime(exp_str, "%Y-%m-%d") - now).days
-            if dte < min_dte or dte > max_dte:
-                continue
-            for strike_str, contracts in strikes.items():
-                for opt in contracts:
-                    oi = int(opt.get("openInterest") or 0)
-                    vol = int(opt.get("totalVolume") or 0)
-                    key = f"{exp_str}|{strike_str}|{opt_type}"
-                    snapshot[key] = {"oi": oi, "volume": vol, "dte": dte}
+    for exp_str, calls_df, puts_df in raw_chain:
+        exp_date = datetime.strptime(exp_str, "%Y-%m-%d").date()
+        dte = (exp_date - today).days
+        if dte < min_dte or dte > max_dte:
+            continue
+        for df, opt_type in [(calls_df, "call"), (puts_df, "put")]:
+            volume_col = "totalVolume" if "totalVolume" in df.columns else "volume"
+            for _, row in df.iterrows():
+                oi = int(row.get("openInterest", 0) or 0)
+                vol = int(row.get(volume_col, 0) or 0)
+                key = f"{exp_str}|{row['strike']}|{opt_type}"
+                snapshot[key] = {"oi": oi, "volume": vol, "dte": dte}
     return snapshot
 
 
@@ -224,6 +185,7 @@ def compute_churn(today_snap, prior_snap, incremental_volume=False):
         prior = prior_snap.get(key)
         if prior is None:
             continue
+        exp_str, strike_str, opt_type = key.split("|")
         delta_oi = today["oi"] - prior["oi"]
         volume = (
             max(today["volume"] - prior["volume"], 0)
@@ -234,7 +196,9 @@ def compute_churn(today_snap, prior_snap, incremental_volume=False):
         churn_vol = max(volume - new_oi_vol, 0)
         rows.append(
             {
-                "type": key.split("|")[2],
+                "exp": exp_str,
+                "strike": float(strike_str),
+                "type": opt_type,
                 "dte": today["dte"],
                 "oi_prior": prior["oi"],
                 "oi_today": today["oi"],
@@ -335,17 +299,15 @@ def main():
         min_dte, max_dte = 1, days
 
     window_label = "0DTE" if args.dte_zero else f"DTE {min_dte}-{max_dte}"
-    print(f"OI vs Churn Report — {symbol}  ({window_label})\n")
-
-    print("Fetching chain from Schwab...")
-    data = fetch_schwab_chain(symbol, max_dte)
-    spot = data.get("underlyingPrice")
-    if spot:
-        print(f"Spot: ${spot:.2f}\n")
-
-    today_snap = parse_chain(data, min_dte, max_dte)
     now = datetime.now()
     today_str = now.strftime("%Y-%m-%d")
+    print(f"OI vs Churn Report — {symbol}  ({window_label})\n")
+
+    spot, is_direct_index = get_spot(symbol, today_str)
+    print(f"Spot: ${spot:.2f}\n")
+
+    raw_chain = get_chain(symbol, today_str, max_dte, is_direct_index)
+    today_snap = parse_chain(raw_chain, min_dte, max_dte)
     print(f"  {len(today_snap)} contracts in range\n")
 
     history = load_history(symbol)
@@ -383,6 +345,11 @@ def main():
             "(chain window may have shifted) — nothing to compare."
         )
     else:
+        ts = now.strftime("%Y%m%d_%H%M%S")
+        out_path = csv_path(symbol, window_key, ts)
+        save_csv(out_path, rows)
+        print(f"Per-strike churn ({len(rows)} contracts) saved to {out_path}\n")
+
         calls = [r for r in rows if r["type"] == "call"]
         puts = [r for r in rows if r["type"] == "put"]
         near = [r for r in rows if r["dte"] <= NEAR_DTE]

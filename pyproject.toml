@@ -43,3 +43,6 @@ dev = [
 gex = "gex_levels.main:main"
 check-schwab-token = "gex_levels.auth.check_schwab_token:main"
 gex-history = "gex_levels.outputs.view_history:main"
+oi-churn = "gex_levels.reports.oi_churn:main"
+otm-call-flow = "gex_levels.reports.otm_call_flow:main"
+compare-greeks = "gex_levels.reports.compare_greeks:main"

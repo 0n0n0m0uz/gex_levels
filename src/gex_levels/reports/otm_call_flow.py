@@ -43,6 +43,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from gex_levels.config import BASE_DIR
 from gex_levels.getData.fetch_spot import get_spot, get_chain, get_risk_free_rate
 from gex_levels.black_scholes.black_scholes_calcs import bs_delta, bs_gamma
 
@@ -51,7 +52,7 @@ DELTA_MAX = 0.40
 OTM_CEILING = 1.25  # strikes up to +25% OTM
 NEAR_DTE = 21  # near-term bucket ceiling
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+DATA_DIR = BASE_DIR / "src" / "gex_levels" / "reports" / "data"
 
 
 def state_path(symbol):
@@ -65,12 +66,12 @@ def collect_otm_calls(raw_chain, spot, min_dte, max_dte, risk_free_rate):
 
     Returns list of dicts per qualifying strike.
     """
-    now = datetime.now()
+    today = datetime.now().date()
     results = []
 
     for exp_str, calls_df, _ in raw_chain:
-        exp_date = datetime.strptime(exp_str, "%Y-%m-%d")
-        dte = (exp_date - now).days
+        exp_date = datetime.strptime(exp_str, "%Y-%m-%d").date()
+        dte = (exp_date - today).days
         if dte < min_dte or dte > max_dte:
             continue
         T = max(dte, 0.5) / 365.0
@@ -327,6 +328,9 @@ def main():
     print(
         f"  Far-term  (>{NEAR_DTE}d) OI:        {fmt_bn(m_far['dollar_delta_oi'])}  ({m_far['count']} strikes)"
     )
+    total_oi = m_near["dollar_delta_oi"] + m_far["dollar_delta_oi"]
+    near_pct = (m_near["dollar_delta_oi"] / total_oi * 100) if total_oi else 0.0
+    print(f"  Near-term share of OI:          {near_pct:.0f}%")
     print(f"  Momentum vs prior:             {momentum_str}")
     print(f"  Signal:                        {signal}")
 
