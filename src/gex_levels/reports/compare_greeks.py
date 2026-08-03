@@ -208,7 +208,7 @@ def main():
         for exp_key, strikes in data.get(map_key, {}).items():
             exp_str = exp_key.split(":")[0]
             exp_date = datetime.strptime(exp_str, "%Y-%m-%d")
-            dte = (exp_date - now).days
+            dte = (exp_date.date() - now.date()).days
             if dte < min_dte or dte > max_dte:
                 continue
             exp_dt = exp_date.replace(hour=16)  # options expire at market close
