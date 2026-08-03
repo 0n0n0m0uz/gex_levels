@@ -50,6 +50,13 @@ Examples:
         help="Enable separate 0DTE processing logic.",
     )
 
+    parser.add_argument(
+        "--no-gamma-chart",
+        dest="no_gamma_chart",
+        action="store_true",
+        help="Skip the per-strike gamma exposure bar chart printed at the end of each run.",
+    )
+
     return parser
 
 

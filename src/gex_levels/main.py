@@ -19,6 +19,7 @@ from gex_levels.outputs.zero_dte_output_gex_file import write_gex_file_0dte
 from gex_levels.outputs.zero_dte_pinescript_output import print_pinescript_block_0dte
 from gex_levels.outputs.pinescript_output import print_pinescript_block
 from gex_levels.outputs.historical_store import save_daily_summary
+from gex_levels.outputs.gamma_exposure_chart import print_gamma_exposure_chart
 from debug.debug_hub import hub
 
 # External Modules
@@ -74,6 +75,12 @@ def main():
                     f"({data['gex_regime']})"
                 )
                 print()
+
+                if not args.no_gamma_chart:
+                    print_gamma_exposure_chart(
+                        data["gex_profile"], data["underlying"], data["gamma_flip"],
+                        data["call_wall"], data["put_wall"], symbol, "0DTE",
+                    )
             except Exception:
                 import traceback
                 traceback.print_exc()
@@ -143,6 +150,16 @@ def main():
                     )
 
                 print()
+
+                if not args.no_gamma_chart:
+                    for w in (30, 90):
+                        if w not in data:
+                            continue
+                        d = data[w]
+                        print_gamma_exposure_chart(
+                            d["gex_profile"], d["underlying"], d["gamma_flip"],
+                            d["call_wall"], d["put_wall"], symbol, f"{w}d",
+                        )
 
             except Exception:
                 import traceback
