@@ -1,11 +1,29 @@
 import os
 import json
 import base64
+import threading
 
 
 from gex_levels.config import BASE_DIR
 
 SCHWAB_TOKEN_PATH = BASE_DIR / ".secret" / ".schwab_token.json"
+
+# One requests.Session per thread so concurrent callers (e.g. a thread pool
+# fetching multiple expirations at once) get HTTP connection-pooling/keep-alive
+# to api.schwabapi.com without sharing a Session object across threads.
+_thread_local = threading.local()
+
+# Guards token refresh so concurrent 401s from a thread pool don't each kick
+# off a redundant refresh_token call / file write race.
+_token_refresh_lock = threading.Lock()
+
+
+def _get_session():
+    if not hasattr(_thread_local, "session"):
+        import requests
+
+        _thread_local.session = requests.Session()
+    return _thread_local.session
 
 
 def _schwab_refresh_token(token_data):
@@ -47,14 +65,15 @@ def _schwab_refresh_token(token_data):
 
 
 def schwab_get(url, params):
-    """GET against a Schwab endpoint, refreshing the token on 401."""
-    import requests
+    """GET against a Schwab endpoint, refreshing the token on 401. Safe to call
+    from multiple threads concurrently."""
+    session = _get_session()
 
     with open(SCHWAB_TOKEN_PATH) as f:
         token_data = json.load(f)
 
     def _request(access_token):
-        return requests.get(
+        return session.get(
             url,
             params=params,
             headers={"Authorization": f"Bearer {access_token}"},
@@ -63,6 +82,12 @@ def schwab_get(url, params):
 
     resp = _request(token_data["token"]["access_token"])
     if resp.status_code == 401:
-        resp = _request(_schwab_refresh_token(token_data))
+        with _token_refresh_lock:
+            # Another thread may have already refreshed while we waited.
+            with open(SCHWAB_TOKEN_PATH) as f:
+                token_data = json.load(f)
+            resp = _request(token_data["token"]["access_token"])
+            if resp.status_code == 401:
+                resp = _request(_schwab_refresh_token(token_data))
     resp.raise_for_status()
     return resp.json()
